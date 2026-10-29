@@ -1,6 +1,6 @@
 {
   "name": "dota-assistente",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Assistente de voz para Dota 2 usando Game State Integration (GSI) oficial da Valve",
   "type": "module",
   "private": true,
@@ -15,6 +15,11 @@
     "install-cfg": "node scripts/install-cfg.js",
     "simulate": "node scripts/simulate.js",
     "generate-sounds": "node scripts/generate-sounds.js",
-    "test-sounds": "node scripts/test-sounds.js"
+    "test-sounds": "node scripts/test-sounds.js",
+    "build": "node scripts/build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6"
   }
 }

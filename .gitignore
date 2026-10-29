@@ -3,3 +3,4 @@ node_modules/
 logs/
 # Sons extraídos do Dota 2 são da Valve: não versionar
 sounds/dota/
+dist/

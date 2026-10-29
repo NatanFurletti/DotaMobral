@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DotaMobral</title>
+<style>
+  :root {
+    --bg: #f4f2ef; --card: #ffffff; --text: #1d1b19; --muted: #6b655e; --line: #e4dfd8;
+    --accent: #b8321f; --accent-text: #ffffff; --ok: #1f7a43; --warn: #a15c00; --bad: #b8321f;
+    --ok-bg: #e3f3e8; --warn-bg: #fbefdc; --bad-bg: #f9e3df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141312; --card: #1e1c1a; --text: #ece8e3; --muted: #a39b91; --line: #312d29;
+      --accent: #d9482f; --ok: #5bc785; --warn: #e3a447; --bad: #ef7a64;
+      --ok-bg: #16301f; --warn-bg: #352712; --bad-bg: #3a1d17;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  h1 { font-size: 24px; margin: 0; letter-spacing: -0.01em; }
+  h1 small { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 14px; }
+  .pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.wait { color: var(--warn); background: var(--warn-bg); }
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .stat .k { color: var(--muted); font-size: 13px; }
+  .stat .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .step { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .step:first-of-type { border-top: 0; padding-top: 0; }
+  .icon { flex: 0 0 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+  .icon.ok { color: var(--ok); background: var(--ok-bg); }
+  .icon.todo { color: var(--warn); background: var(--warn-bg); }
+  .step p { margin: 2px 0 8px; color: var(--muted); }
+  .step b { color: var(--text); }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 8px 14px; }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button:disabled { opacity: .6; cursor: default; }
+  code { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-size: 14px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 10px 22px; }
+  .seg button.on { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+  label.slider { display: grid; grid-template-columns: 110px 1fr 44px; align-items: center; gap: 10px; margin: 8px 0; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=text] { font: inherit; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 8px 6px; border-top: 1px solid var(--line); text-align: left; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; border-top: 0; }
+  td.kind { color: var(--muted); font-size: 13px; }
+  input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+  select { font: inherit; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .msg { margin-top: 8px; font-size: 14px; }
+  .msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
+  .muted { color: var(--muted); font-size: 13px; }
+  footer { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+  .hidden { display: none; }
+  @media (max-width: 520px) { label.slider { grid-template-columns: 1fr 44px; } label.slider span:first-child { grid-column: 1 / -1; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>DotaMobral <small id="version"></small></h1>
+    <span id="conn" class="pill wait">Aguardando o Dota</span>
+  </header>
+
+  <section class="card">
+    <h2>Partida</h2>
+    <div class="status-grid">
+      <div class="stat"><div class="k">Situação</div><div class="v" id="gameState">—</div></div>
+      <div class="stat"><div class="k">Relógio do jogo</div><div class="v" id="clock">—</div></div>
+      <div class="stat"><div class="k">Último aviso</div><div class="v" id="lastAlert" style="font-size:15px">—</div></div>
+    </div>
+  </section>
+
+  <section class="card" id="setup">
+    <h2>Configuração do Dota (uma vez só)</h2>
+
+    <div class="step">
+      <div class="icon" id="cfgIcon">1</div>
+      <div style="flex:1">
+        <b>Ligar a integração no Dota</b>
+        <p id="cfgText">Cria um arquivo pequeno na pasta do Dota para ele enviar o relógio da partida para cá.</p>
+        <div class="row">
+          <button class="primary" id="cfgBtn">Configurar Dota</button>
+        </div>
+        <div id="cfgManual" class="hidden" style="margin-top:10px">
+          <p>Cole aqui o caminho da pasta <b>dota 2 beta</b>. Para achar: Steam → botão direito em Dota 2 → Gerenciar → Ver arquivos locais, e copie o endereço da janela que abrir.</p>
+          <div class="row"><input type="text" id="cfgDir" placeholder="D:\SteamLibrary\steamapps\common\dota 2 beta"><button id="cfgDirBtn">Usar esta pasta</button></div>
+        </div>
+        <div class="msg" id="cfgMsg"></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="icon" id="optIcon">2</div>
+      <div style="flex:1">
+        <b>Opção de inicialização na Steam</b>
+        <p>Steam → botão direito em <b>Dota 2</b> → <b>Propriedades</b> → <b>Geral</b> → <b>Opções de inicialização</b>, e escreva:</p>
+        <div class="row"><code id="optText">-gamestateintegration</code><button id="copyBtn">Copiar</button></div>
+        <p class="muted" id="optHint" style="margin-top:8px"></p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="icon todo">3</div>
+      <div><b>Abra (ou reinicie) o Dota</b><p>Quando a partida começar, o indicador no topo fica verde: “Dota conectado”.</p></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Modo de jogo</h2>
+    <div class="seg" id="modeSeg">
+      <button data-mode="normal">Normal</button>
+      <button data-mode="turbo">Turbo</button>
+    </div>
+    <p class="muted" style="margin:10px 0 0">No Turbo, a lótus aparece a cada 90 segundos e o Tormentor mais cedo.</p>
+  </section>
+
+  <section class="card">
+    <h2>Volume</h2>
+    <label class="slider"><span>Sons</span><input type="range" min="0" max="100" step="5" id="soundVolume"><span id="soundVolumeV"></span></label>
+    <label class="slider"><span>Voz</span><input type="range" min="0" max="100" step="5" id="volume"><span id="volumeV"></span></label>
+    <div class="row" style="margin-top:6px"><button id="testBtn">▶ Testar sons</button><span class="muted">Toca o nome e o som de cada aviso.</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Avisos</h2>
+    <table>
+      <thead><tr><th>Ligado</th><th>Evento</th><th>Avisar antes</th><th>Tipo</th></tr></thead>
+      <tbody id="events"></tbody>
+    </table>
+  </section>
+
+  <footer>
+    <span class="muted">Usa só a integração oficial da Valve (Game State Integration). Não é afiliado à Valve.</span>
+    <button id="quitBtn">Sair</button>
+  </footer>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const LEADS = [5, 10, 15, 20, 30, 45, 60];
+  let renderedSettings = false;
+
+  async function api(path, body) {
+    const res = await fetch(path, body === undefined ? {} : {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  function renderStatus(s) {
+    $('version').textContent = `v${s.version}`;
+    const conn = $('conn');
+    conn.className = `pill ${s.status.connected ? 'ok' : 'wait'}`;
+    conn.textContent = s.status.connected ? 'Dota conectado' : 'Aguardando o Dota';
+    $('gameState').textContent = s.status.connected ? (s.status.gameState ?? 'No menu') : '—';
+    $('clock').textContent = s.status.connected && s.status.clock ? s.status.clock : '—';
+    $('lastAlert').textContent = s.status.lastAlert ? `${s.status.lastAlert.text} (${s.status.lastAlert.clock})` : '—';
+
+    const cfgOk = s.gsi.cfgInstalled;
+    $('cfgIcon').className = `icon ${cfgOk ? 'ok' : 'todo'}`;
+    $('cfgIcon').textContent = cfgOk ? '✓' : '1';
+    $('cfgBtn').textContent = cfgOk ? 'Configurar de novo' : 'Configurar Dota';
+    if (cfgOk && !$('cfgMsg').textContent) $('cfgText').textContent = 'Pronto: a integração está instalada na pasta do Dota.';
+
+    const opt = s.gsi.launchOption;
+    $('optText').textContent = s.gsi.launchOptionText;
+    $('optIcon').className = `icon ${opt ? 'ok' : 'todo'}`;
+    $('optIcon').textContent = opt ? '✓' : '2';
+    $('optHint').textContent = opt
+      ? 'Encontrei a opção na sua Steam. ✓'
+      : 'Ainda não encontrei a opção. A Steam pode demorar para salvar: se você já colocou, pode ignorar este aviso.';
+  }
+
+  function renderSettings(s) {
+    document.querySelectorAll('#modeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === s.settings.mode));
+    for (const key of ['volume', 'soundVolume']) {
+      $(key).value = s.settings[key];
+      $(`${key}V`).textContent = s.settings[key];
+    }
+    $('events').innerHTML = '';
+    for (const e of s.events) {
+      const tr = document.createElement('tr');
+      const leads = [...new Set([...LEADS, e.lead])].sort((a, b) => a - b);
+      tr.innerHTML = `
+        <td><input type="checkbox" ${e.enabled ? 'checked' : ''} aria-label="Ligar ${e.label}"></td>
+        <td>${e.label.charAt(0).toUpperCase() + e.label.slice(1)}</td>
+        <td><select aria-label="Antecedência de ${e.label}">${leads.map((l) => `<option value="${l}" ${l === e.lead ? 'selected' : ''}>${l} s</option>`).join('')}</select></td>
+        <td class="kind">${e.kind}</td>`;
+      tr.querySelector('input').addEventListener('change', (ev) => save({ events: { [e.id]: { enabled: ev.target.checked } } }));
+      tr.querySelector('select').addEventListener('change', (ev) => save({ events: { [e.id]: { lead: Number(ev.target.value) } } }));
+      $('events').appendChild(tr);
+    }
+    renderedSettings = true;
+  }
+
+  async function save(patch, rerender = false) {
+    const s = await api('/api/settings', patch);
+    renderStatus(s);
+    if (rerender) renderSettings(s);
+  }
+
+  async function refresh() {
+    try {
+      const s = await api('/api/state');
+      renderStatus(s);
+      if (!renderedSettings) renderSettings(s);
+    } catch {
+      const conn = $('conn');
+      conn.className = 'pill wait';
+      conn.textContent = 'DotaMobral fechado';
+    }
+  }
+
+  document.querySelectorAll('#modeSeg button').forEach((b) =>
+    b.addEventListener('click', () => save({ mode: b.dataset.mode }, true)));
+
+  for (const key of ['volume', 'soundVolume']) {
+    $(key).addEventListener('input', () => { $(`${key}V`).textContent = $(key).value; });
+    $(key).addEventListener('change', () => save({ [key]: Number($(key).value) }));
+  }
+
+  async function installCfg(dir) {
+    $('cfgMsg').className = 'msg';
+    $('cfgMsg').textContent = 'Configurando...';
+    const r = await api('/api/install-cfg', dir ? { dir } : {});
+    if (r.ok) {
+      $('cfgMsg').className = 'msg ok';
+      $('cfgMsg').textContent = 'Pronto! Agora faça o passo 2 abaixo.';
+      $('cfgManual').classList.add('hidden');
+    } else {
+      $('cfgMsg').className = 'msg bad';
+      $('cfgMsg').textContent = dir ? 'Essa pasta não parece ser a do Dota 2. Confira o caminho.' : 'Não encontrei a pasta do Dota automaticamente.';
+      $('cfgManual').classList.remove('hidden');
+    }
+    refresh();
+  }
+  $('cfgBtn').addEventListener('click', () => installCfg());
+  $('cfgDirBtn').addEventListener('click', () => installCfg($('cfgDir').value));
+
+  $('copyBtn').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('optText').textContent); $('copyBtn').textContent = 'Copiado ✓'; }
+    catch { $('copyBtn').textContent = 'Selecione e copie'; }
+    setTimeout(() => { $('copyBtn').textContent = 'Copiar'; }, 2000);
+  });
+
+  $('testBtn').addEventListener('click', async () => {
+    $('testBtn').disabled = true;
+    await api('/api/test-sounds', {}).catch(() => {});
+    setTimeout(() => { $('testBtn').disabled = false; }, 3000);
+  });
+
+  $('quitBtn').addEventListener('click', async () => {
+    if (!confirm('Fechar o DotaMobral? Os avisos param até você abrir de novo.')) return;
+    await api('/api/quit', {}).catch(() => {});
+    document.body.innerHTML = '<main><div class="card"><h2>DotaMobral fechado</h2><p>Pode fechar esta aba. Para usar de novo, abra o DotaMobral.exe.</p></div></main>';
+  });
+
+  refresh();
+  setInterval(refresh, 1500);
+</script>
+</body>
+</html>

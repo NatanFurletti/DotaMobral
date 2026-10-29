@@ -1,0 +1,70 @@
+# 🎮 Como instalar o DotaMobral
+
+O DotaMobral toca sons e avisos **antes** das runas, da lótus e do Tormentor aparecerem no Dota 2.
+
+- Usa a integração **oficial** da Valve (Game State Integration). Não mexe no jogo, não lê a memória e não mostra nada na tela: **não dá ban**.
+- Não precisa instalar nada além dele mesmo. São dois cliques.
+- Funciona no **Windows**.
+
+---
+
+## 1. Baixar
+
+1. Abra a página de downloads: **https://github.com/NatanFurletti/DotaMobral/releases/latest**
+2. Em **Assets**, clique em **`DotaMobral.exe`** para baixar.
+3. (Recomendado) Mova o arquivo da pasta **Downloads** para **Documentos**.
+
+## 2. Abrir
+
+1. Dê **dois cliques** no `DotaMobral.exe`.
+2. **Na primeira vez**, o Windows pode mostrar uma tela azul dizendo **"O Windows protegeu o computador"**.
+   Isso acontece com qualquer programa novo que não tem assinatura digital paga. Para continuar:
+   clique em **Mais informações** → **Executar assim mesmo**.
+3. Vão abrir **duas coisas**:
+   - uma **janela preta**: é o assistente funcionando. **Não feche** (pode minimizar);
+   - uma **página no navegador** com os botões do DotaMobral.
+
+Você vai ouvir: **"Assistente de Dota pronto"**.
+
+## 3. Configurar o Dota (só na primeira vez)
+
+Na página do DotaMobral, na parte **"Configuração do Dota"**:
+
+1. Clique em **Configurar Dota**. O passo 1 fica com um ✓ verde.
+2. Faça o passo 2 na **Steam**:
+   - clique com o **botão direito** em **Dota 2** → **Propriedades**;
+   - na aba **Geral**, em **Opções de inicialização**, cole o texto `-gamestateintegration`
+     (o botão **Copiar** da página copia para você);
+   - feche a janela de Propriedades.
+3. Abra o Dota 2 (se já estava aberto, **feche e abra de novo**).
+
+## 4. Jogar
+
+1. Abra o **DotaMobral.exe** **antes** de entrar na partida.
+2. Na página, escolha **Normal** ou **Turbo**, conforme o modo que for jogar.
+3. Quando a partida começar, o indicador no topo da página fica **verde: "Dota conectado"**.
+4. Pronto! Os sons tocam sozinhos, uns segundos antes de cada evento.
+
+Na página também dá para:
+- mudar o **volume** dos sons e da voz;
+- **ligar/desligar** cada aviso e escolher **quantos segundos antes** ele toca;
+- clicar em **▶ Testar sons** para ouvir todos.
+
+Suas escolhas ficam salvas para a próxima vez.
+
+---
+
+## ❓ Problemas comuns
+
+| O que aconteceu | O que fazer |
+|---|---|
+| Fechei a página do navegador sem querer | Dê dois cliques no `DotaMobral.exe` de novo: ele só reabre a página. |
+| O indicador nunca fica verde | Confira o passo 2 (opção na Steam) e **reinicie o Dota**. Os avisos só começam quando a partida carrega. |
+| "Não encontrei a pasta do Dota" | Aparece um campo para colar a pasta. Na Steam: botão direito em Dota 2 → **Gerenciar** → **Ver arquivos locais**. Copie o endereço da janela que abrir e cole no campo. |
+| A voz fala com sotaque americano | Seu Windows não tem a voz em português. Vá em **Configurações → Hora e idioma → Fala → Adicionar vozes → Português (Brasil)**. |
+| O antivírus bloqueou o arquivo | Programas novos e sem assinatura às vezes são bloqueados por engano. O código é aberto e pode ser conferido neste repositório. Se confiar, libere o arquivo no antivírus. |
+| Quero fechar o assistente | Feche a janela preta ou clique em **Sair** na página. |
+
+---
+
+DotaMobral não é afiliado à Valve. Dota 2 é marca registrada da Valve Corporation.

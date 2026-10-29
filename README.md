@@ -1,49 +1,60 @@
-# Dota Assistente (MVP)
+# DotaMobral
 
-Avisos de voz em português para runas, lótus, Tormentor e dia/noite no Dota 2.
+Avisos sonoros para Dota 2: runas, lótus e Tormentor, alguns segundos antes de aparecerem.
+Modos **Normal** e **Turbo**, com interface simples no navegador.
 
-Usa só a **Game State Integration (GSI)**, a API oficial da Valve: o próprio jogo envia o relógio da partida
-para este app. Nada de ler memória, injetar código ou desenhar na tela.
+## ⬇️ Quero só usar
 
-Requisitos: Windows, Node 18+ e uma voz pt-BR instalada (a "Microsoft Maria" já vem no Windows em português).
-Não há dependências para instalar.
+Baixe o **`DotaMobral.exe`** em [Releases](https://github.com/NatanFurletti/DotaMobral/releases/latest)
+e siga o guia **[COMO-INSTALAR.md](COMO-INSTALAR.md)**. Não precisa instalar mais nada.
 
-## Como usar
+## É seguro? Dá ban?
 
-1. Criar o arquivo de configuração da GSI na pasta do Dota (só uma vez):
-   ```
-   npm run install-cfg
-   ```
-   Se não achar a pasta: `npm run install-cfg -- --dir="D:\SteamLibrary\steamapps\common\dota 2 beta"`
+O DotaMobral usa apenas a **Game State Integration (GSI)**, a integração oficial que a própria Valve
+oferece: o jogo envia o relógio da partida para o programa, no seu computador.
 
-2. Na Steam: Dota 2 > Propriedades > Opções de inicialização, adicionar `-gamestateintegration`.
+- Não lê a memória do jogo, não injeta código e não desenha nada na tela.
+- Não mostra informação escondida (posição de inimigos etc.): só faz as contas de tempo que o
+  jogador faria de cabeça.
+- Nada sai do seu computador: a interface roda em `http://127.0.0.1`.
 
-3. Abrir o assistente antes de jogar:
-   ```
-   npm start
-   ```
+Os sons são **originais, sintetizados por código** (`scripts/generate-sounds.js`). Nada vem do jogo.
 
-   No **modo Turbo**, use `npm run start:turbo` (lótus a cada 90 s e Tormentor mais cedo).
-   Para deixar o Turbo como padrão, coloque `"mode": "turbo"` em `config/app.json`.
+---
 
-4. Para testar sem o jogo, em outro terminal: `npm run simulate -- --speed=10`
+## Para desenvolvedores
 
-## Sons
+Requisitos: Windows e Node 22+. Sem dependências em tempo de execução.
 
-Cada evento toca um som curto (moedas para recompensa, bolhas para água, sinos para sabedoria...).
-Os sons em `sounds/` são **originais, sintetizados por código** (`npm run generate-sounds`); nada vem do jogo.
+```
+npm install          # só ferramentas de build (esbuild, postject)
+npm start            # assistente + interface em http://127.0.0.1:3000
+npm run start:turbo  # já começa no modo Turbo
+npm run simulate -- --speed=10   # simula uma partida (em outro terminal)
+npm run build        # gera dist/DotaMobral.exe
+```
 
-- Ouvir todos: `npm run test-sounds`
-- Trocar um som: coloque seu `.wav` ou `.mp3` e aponte o campo `sound` do evento em `config/timers.json`.
-- Sem o campo `sound` (ou se o arquivo não existir), o evento é avisado por voz.
+Outros comandos: `npm run test-sounds`, `npm run generate-sounds`, `npm run install-cfg`,
+`npm run start:record` (grava os pacotes da GSI em `logs/`, que tem seu Steam ID e fica fora do git).
 
-## Configuração
+### Estrutura
 
-- `config/timers.json`: eventos, horários, antecedência (`lead`) e liga/desliga. **Os tempos mudam com os patches.
-  Confira as notas do patch atual.**
-- `config/app.json`: porta, token, voz, velocidade (`rate`, de -10 a 10) e volume.
+| Caminho | O que é |
+|---|---|
+| `src/server.js` | Servidor: recebe a GSI, toca os avisos e serve a interface/API |
+| `src/timers.js` | Calcula quando avisar cada evento a partir do relógio do jogo |
+| `src/speaker.js` | Voz (System.Speech) e sons (winmm) do Windows, via PowerShell |
+| `src/settings.js` | Preferências do usuário em `%APPDATA%\DotaMobral\settings.json` |
+| `src/gsi-cfg.js` | Instala o `.cfg` da GSI na pasta do Dota e verifica a opção da Steam |
+| `ui/index.html` | Interface |
+| `config/timers.json`, `config/timers-turbo.json` | Tempos de cada modo (**mudam com os patches**) |
+| `scripts/build.js` | Empacota tudo num `.exe` (Node Single Executable Applications) |
 
-## Descobrir o que a GSI envia
+### Campos de evento (`config/timers*.json`)
 
-`npm run start:record` grava cada pacote recebido em `logs/`. Use numa partida de bots e numa ranqueada para ver
-quais campos chegam em cada modo.
+`first` + `interval` (repete), `times` (horários fixos), `last` (não avisa depois disso),
+`lead` (segundos de antecedência), `sound` (arquivo .wav/.mp3) ou `say` (palavra falada).
+
+---
+
+DotaMobral não é afiliado à Valve. Dota 2 é marca registrada da Valve Corporation.
