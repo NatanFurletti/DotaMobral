@@ -1,0 +1,15 @@
+{
+  "_comment": "Perfil do modo TURBO (npm run start:turbo). Diferenças do normal: lótus a cada 90 s e Tormentor na metade do tempo. Runas seguem os tempos normais. Confira a cada patch.",
+  "defaultLead": 15,
+  "tolerance": 3,
+  "events": [
+    { "id": "bounty",    "label": "runas de recompensa", "first": 0,    "interval": 240, "sound": "sounds/bounty.wav",    "enabled": true },
+    { "id": "power",     "label": "runa de poder",       "first": 360,  "interval": 120, "say": "Power",     "enabled": true },
+    { "id": "water",     "label": "runas de água",       "times": [120, 240],            "sound": "sounds/water.wav",     "enabled": true },
+    { "id": "wisdom",    "label": "runas de sabedoria",  "first": 420,  "interval": 420, "lead": 20, "say": "Wisdom", "enabled": true },
+    { "id": "lotus",     "label": "lótus",               "first": 90,   "interval": 90,  "last": 600, "lead": 10, "sound": "sounds/lotus.wav", "enabled": true },
+    { "id": "tormentor", "label": "Tormentor",           "times": [600],                 "lead": 30, "sound": "sounds/tormentor.wav", "enabled": true },
+    { "id": "night",     "label": "noite",               "first": 300,  "interval": 600, "enabled": false },
+    { "id": "day",       "label": "dia",                 "first": 600,  "interval": 600, "enabled": false }
+  ]
+}

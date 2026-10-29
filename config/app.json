@@ -1,0 +1,8 @@
+{
+  "port": 3000,
+  "token": "dota-assistente-local",
+  "voice": "pt-BR",
+  "rate": 1,
+  "volume": 80,
+  "soundVolume": 60
+}

@@ -1,0 +1,5 @@
+node_modules/
+# Gravações da GSI (contêm seu Steam ID)
+logs/
+# Sons extraídos do Dota 2 são da Valve: não versionar
+sounds/dota/
