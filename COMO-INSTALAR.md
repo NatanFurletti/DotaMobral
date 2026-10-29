@@ -12,7 +12,33 @@ O DotaMobral toca sons e avisos **antes** das runas, da lótus e do Tormentor ap
 
 1. Abra a página de downloads: **https://github.com/NatanFurletti/DotaMobral/releases/latest**
 2. Em **Assets**, clique em **`DotaMobral.exe`** para baixar.
-3. (Recomendado) Mova o arquivo da pasta **Downloads** para **Documentos**.
+3. **O navegador provavelmente vai "segurar" o arquivo** (veja abaixo como liberar).
+4. (Recomendado) Mova o arquivo da pasta **Downloads** para **Documentos**.
+
+### O navegador bloqueou o download?
+
+Isso é normal: os navegadores desconfiam de qualquer programa novo e pouco baixado.
+Se na pasta Downloads aparecer um arquivo com nome estranho, como
+**`Não confirmado 123456.crdownload`**, o download **não terminou**: ele está esperando você
+confirmar. Não abra nem renomeie esse arquivo; libere pelo navegador:
+
+**Google Chrome**
+1. Aperte **Ctrl+J** (abre a página de Downloads).
+2. No **DotaMobral.exe**, clique em **Manter**.
+   Se não houver o botão, clique nos **três pontinhos ⋮** ao lado do arquivo e escolha
+   **Manter** / **Fazer download de arquivo suspeito**.
+3. Se pedir confirmação de novo, clique em **Manter mesmo assim**.
+
+**Microsoft Edge**
+1. Aperte **Ctrl+J** (abre o painel de Downloads).
+2. Passe o mouse no **DotaMobral.exe**, clique nos **três pontinhos ...** e em **Manter**.
+3. Clique em **Mostrar mais** → **Manter mesmo assim**.
+
+Quando der certo, o arquivo aparece na pasta Downloads com o nome **`DotaMobral.exe`**.
+Se o arquivo travado (`.crdownload`) continuar lá, pode apagar.
+
+> Ainda não funcionou? Tente baixar por outro navegador (Edge, se estava no Chrome, ou o
+> contrário).
 
 ## 2. Abrir
 
@@ -58,6 +84,7 @@ Suas escolhas ficam salvas para a próxima vez.
 
 | O que aconteceu | O que fazer |
 |---|---|
+| Na pasta Downloads só tem um arquivo `.crdownload` ("Não confirmado...") | O navegador está segurando o download. Veja **"O navegador bloqueou o download?"** no passo 1. |
 | Fechei a página do navegador sem querer | Dê dois cliques no `DotaMobral.exe` de novo: ele só reabre a página. |
 | O indicador nunca fica verde | Confira o passo 2 (opção na Steam) e **reinicie o Dota**. Os avisos só começam quando a partida carrega. |
 | "Não encontrei a pasta do Dota" | Aparece um campo para colar a pasta. Na Steam: botão direito em Dota 2 → **Gerenciar** → **Ver arquivos locais**. Copie o endereço da janela que abrir e cole no campo. |
