@@ -4,9 +4,9 @@
   "tolerance": 3,
   "events": [
     { "id": "bounty",    "label": "runas de recompensa", "first": 0,    "interval": 240, "sound": "sounds/bounty.wav",    "enabled": true },
-    { "id": "power",     "label": "runa de poder",       "first": 360,  "interval": 120, "say": "Power",     "enabled": true },
+    { "id": "power",     "label": "runa de poder",       "first": 360,  "interval": 120, "sound": "sounds/power-voz.wav",   "enabled": true },
     { "id": "water",     "label": "runas de água",       "times": [120, 240],            "sound": "sounds/water.wav",     "enabled": true },
-    { "id": "wisdom",    "label": "runas de sabedoria",  "first": 420,  "interval": 420, "lead": 20, "say": "Wisdom", "enabled": true },
+    { "id": "wisdom",    "label": "runas de sabedoria",  "first": 420,  "interval": 420, "lead": 20, "sound": "sounds/wisdom-voz.wav", "enabled": true },
     { "id": "lotus",     "label": "lótus",               "first": 180,  "interval": 180, "last": 600, "lead": 10, "sound": "sounds/lotus.wav",   "enabled": true },
     { "id": "tormentor", "label": "Tormentor",           "times": [1200],                "lead": 30, "sound": "sounds/tormentor.wav", "enabled": true },
     { "id": "night",     "label": "noite",               "first": 300,  "interval": 600, "enabled": false },

@@ -24,6 +24,8 @@ const ASSETS = [
   'sounds/wisdom.wav',
   'sounds/lotus.wav',
   'sounds/tormentor.wav',
+  'sounds/power-voz.wav',
+  'sounds/wisdom-voz.wav',
 ];
 
 // Remove a assinatura digital do node.exe copiado: ela deixa de valer depois da injeção,
