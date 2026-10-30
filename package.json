@@ -1,6 +1,6 @@
 {
   "name": "dota-assistente",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Assistente de voz para Dota 2 usando Game State Integration (GSI) oficial da Valve",
   "type": "module",
   "private": true,

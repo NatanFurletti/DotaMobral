@@ -82,6 +82,11 @@ mostra **"Reconhecimento de heróis pronto"** quando terminar.
 
 - Para funcionar, use o Dota em **Janela sem bordas** (Configurações → Vídeo → Modo de exibição).
   Em tela cheia o Windows pode devolver a captura preta.
+- Se o seu herói joga em duas posições (ex.: Witch Doctor 4 ou 5), aparecem botões para você
+  escolher com um clique. Em **"Outras disposições da lane"** há cenários prontos (você + duo contra
+  outra dupla inimiga), também com um clique.
+- A seção **Build** mostra, com ícones, os itens de lane (baratos), os de meio/fim de jogo e a ordem
+  de skills. Itens com borda amarela foram escolhidos contra a partida (passe o mouse para ver o porquê).
 - Se algum herói vier errado, corrija em **"Os 10 heróis"**, ou clique em **"Ler heróis agora"**
   para ler de novo (suas correções são mantidas). Se a posição estimada não for a sua, escolha em
   **"Minha posição"**.
@@ -89,6 +94,12 @@ mostra **"Reconhecimento de heróis pronto"** quando terminar.
   tempo de estratégia.
 - A leitura só acontece com os 10 heróis já escolhidos (nunca durante a escolha) e usa só a barra
   superior, que todos os jogadores veem. Pode ser desligada na própria página.
+
+### Ouro por minuto
+
+Na parte **Partida**, a partir dos 5 minutos, uma barra mostra se você está **farmando pouco, na média
+ou bem** comparado com as partidas do seu herói. No Turbo aparece só o número (a referência é de
+partidas normais).
 
 Na página também dá para:
 - mudar o **volume** dos sons e da voz;
