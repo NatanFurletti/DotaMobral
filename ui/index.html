@@ -85,6 +85,18 @@
   .slot select { flex: 1; min-width: 0; }
   .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; background: var(--line); }
   .dot.alta, .dot.manual { background: var(--ok); } .dot.média { background: var(--warn); } .dot.baixa { background: var(--bad); }
+  .flex { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; margin-bottom: 12px; border-radius: 10px; background: var(--warn-bg); color: var(--text); }
+  .flex button.on, .scen button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .scen { display: grid; gap: 6px; margin-top: 8px; }
+  .scen button { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 44px; align-items: center; gap: 10px; text-align: left; padding: 6px 10px; }
+  .scen img, .mini { width: 34px; height: 19px; object-fit: cover; border-radius: 3px; vertical-align: middle; flex: 0 0 34px; }
+  .spair { display: grid; gap: 3px; min-width: 0; }
+  .sline { display: flex; align-items: center; gap: 6px; font-size: 13px; min-width: 0; }
+  .sname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sname b { font-weight: 400; opacity: .75; }
+  .spos { font-size: 11px; opacity: .65; margin-left: auto; white-space: nowrap; }
+  .svs { font-size: 12px; opacity: .6; font-weight: 700; }
+  .schance { font-size: 12px; text-align: right; font-weight: 600; line-height: 1.3; }
   .build { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 4px; }
   .brow { display: grid; grid-template-columns: 80px 1fr; gap: 10px; align-items: center; margin: 8px 0; }
   .blabel { color: var(--muted); font-size: 13px; }
@@ -136,6 +148,10 @@
     <p class="muted" id="scanMsg" style="margin:0 0 10px"></p>
 
     <div id="laneBody" class="hidden">
+      <div id="flexBox" class="flex hidden">
+        <span id="flexText"></span>
+        <div class="row" id="flexBtns"></div>
+      </div>
       <div class="lane">
         <div><div class="k">Você e seu duo</div><div id="laneUs"></div></div>
         <div class="vs">vs</div>
@@ -143,6 +159,11 @@
       </div>
       <div id="verdict" class="verdict"></div>
       <ul id="reasons" class="reasons"></ul>
+      <details id="scenBox" style="margin-top:10px">
+        <summary>Outras disposições da lane (troque com um clique)</summary>
+        <div id="scenList" class="scen"></div>
+      </details>
+
       <div class="build">
         <h3>Build</h3>
         <div class="brow"><span class="blabel">Lane</span><div id="buildLane" class="bitems"></div></div>
@@ -418,6 +439,8 @@
       $('verdict').className = `verdict ${tone}`;
       $('verdict').textContent = text + (a.basedOnStats ? '' : ' (só pelas características dos heróis)');
       $('reasons').innerHTML = a.reasons.map((r) => `<li class="${r.tone}">${esc(r.text)}</li>`).join('');
+      renderFlex(a);
+      renderScenarios(a);
       renderBuild(a.build);
     }
 
@@ -436,6 +459,34 @@
       });
     }
     if (!m.slots.some(Boolean)) $('heroesBox').open = false;
+  }
+
+  const POS_LABEL = { 1: 'pos 1 · safe', 2: 'pos 2 · mid', 3: 'pos 3 · offlane', 4: 'pos 4 · suporte off', 5: 'pos 5 · suporte safe' };
+  const heroName = (id) => heroById.get(id)?.label ?? '?';
+  const mini = (id) => (heroById.get(id) ? `<img src="${esc(heroById.get(id).img)}" alt="">` : '');
+
+  // Herói flexível: botões rápidos para escolher a posição.
+  function renderFlex(a) {
+    const opts = a.myPosOptions ?? [];
+    $('flexBox').classList.toggle('hidden', opts.length < 2);
+    if (opts.length < 2) return;
+    $('flexText').textContent = `${heroName(a.me.heroId)} pode ser ${opts.map((o) => `pos ${o.pos}`).join(' ou ')}. Qual você vai jogar?`;
+    $('flexBtns').innerHTML = opts.map((o) => `<button data-pos="${o.pos}" class="${o.pos === a.me.pos ? 'on' : ''}">${POS_LABEL[o.pos]} <span class="muted">${o.chance}%</span></button>`).join('');
+    $('flexBtns').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => api('/api/match/position', { pos: Number(b.dataset.pos) }).then(refresh)));
+  }
+
+  // "Outras disposições da lane": cenários prontos para trocar com um clique.
+  function renderScenarios(a) {
+    const list = a.scenarios ?? [];
+    $('scenBox').classList.toggle('hidden', list.length < 2);
+    // Cada linha da dupla: ícone + nome + posição. Sua dupla à esquerda, a inimiga à direita.
+    const line = (id, pos, you = false) => `<span class="sline">${mini(id)}<span class="sname">${esc(heroName(id))}${you ? ' <b>(você)</b>' : ''}</span><span class="spos">pos ${pos}</span></span>`;
+    $('scenList').innerHTML = list.map((s, i) => `<button data-i="${i}" class="${s.current ? 'on' : ''}">
+        <span class="spair">${line(a.me.heroId, s.myPos, true)}${s.duoId ? line(s.duoId, s.allyPositions[s.duoId]) : '<span class="sline muted">mid: sem duo</span>'}</span>
+        <span class="svs">vs</span>
+        <span class="spair">${s.opponents.map((id) => line(id, s.enemyPositions[id])).join('')}</span>
+        <span class="schance">${s.chance}%${s.current ? '<br>atual' : ''}</span></button>`).join('');
+    $('scenList').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => api('/api/match/scenario', { index: Number(b.dataset.i) }).then(refresh)));
   }
 
   function itemChip(it) {

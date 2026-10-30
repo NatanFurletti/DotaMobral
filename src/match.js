@@ -9,7 +9,7 @@ import { analyzeLane } from './advice.js';
 import { buildGuide } from './buildguide.js';
 import { captureStrip } from './capture.js';
 import { loadHeroes, matchups } from './heroes.js';
-import { POSITION_NAMES, assignPositions, laneMatchup } from './lanes.js';
+import { POSITION_NAMES, laneMatchup, laneScenarios, positionChances, rankAssignments } from './lanes.js';
 import { LAYOUTS, recognizeTopBar } from './recognize.js';
 import { ensureTemplates } from './templates.js';
 
@@ -25,6 +25,7 @@ const empty = () => ({
   myTeam: null,
   slots: Array(10).fill(null), // 0-4 Radiant, 5-9 Dire: { heroId, confidence, manual }
   myPos: null, // escolhida por você (null = automática)
+  scenario: null, // disposição da lane escolhida com um clique (posições dos dois times)
   gameState: null,
   auto: { strategy: false, preGame: false },
   scan: { status: 'aguardando', message: 'Os heróis são lidos automaticamente no tempo de estratégia.' },
@@ -163,6 +164,7 @@ export async function scan(kind = 'manual', layoutName = null) {
 export async function setSlotHero(slot, heroId) {
   if (!(slot >= 0 && slot < 10)) return getMatchView();
   state.slots[slot] = heroId ? { heroId: Number(heroId), confidence: 'manual', manual: true } : null;
+  state.scenario = null;
   bump();
   await analyze();
   return getMatchView();
@@ -170,6 +172,18 @@ export async function setSlotHero(slot, heroId) {
 
 export async function setMyPosition(pos) {
   state.myPos = pos >= 1 && pos <= 5 ? Number(pos) : null;
+  state.scenario = null;
+  bump();
+  await analyze();
+  return getMatchView();
+}
+
+// Aplica uma das "outras disposições da lane" (posições dos dois times de uma vez).
+export async function applyScenario(index) {
+  const s = state.analysis?.scenarios?.[index];
+  if (!s) return getMatchView();
+  state.scenario = { myPos: s.myPos, allyPositions: s.allyPositions, enemyPositions: s.enemyPositions };
+  state.myPos = s.myPos;
   bump();
   await analyze();
   return getMatchView();
@@ -179,6 +193,8 @@ export function clearMatch() {
   resetMatch(state.matchId);
   return getMatchView();
 }
+
+const pct = (p) => Math.round(p * 100);
 
 async function analyze() {
   const heroes = await loadHeroes();
@@ -194,18 +210,47 @@ async function analyze() {
     state.analysis = null;
     return;
   }
+  const allyTeam = teams[myTeamIdx];
+  const enemyTeam = teams[1 - myTeamIdx];
+  if (!allyTeam.some((h) => h.id === myHero.id)) {
+    state.analysis = null;
+    return;
+  }
   try {
-    const fixed = state.myPos ? { [myHero.id]: state.myPos } : {};
-    const [allies, enemies] = await Promise.all([
-      assignPositions(teams[myTeamIdx], fixed),
-      assignPositions(teams[1 - myTeamIdx]),
-    ]);
-    const me = allies.find((a) => a.hero.id === myHero.id);
-    if (!me) {
-      state.analysis = null;
-      return;
+    const [allyFree, enemyRanking] = await Promise.all([rankAssignments(allyTeam), rankAssignments(enemyTeam)]);
+
+    // Suas posições possíveis (herói flexível = mais de uma com chance relevante).
+    const chances = positionChances(allyFree, myHero.id);
+    const myPosOptions = Object.entries(chances)
+      .map(([pos, p]) => ({ pos: Number(pos), p }))
+      .filter((o) => o.p >= 0.15 || o.pos === state.myPos)
+      .sort((a, b) => b.p - a.p)
+      .slice(0, 3);
+    const allyRankByPos = {};
+    for (const o of myPosOptions) allyRankByPos[o.pos] = await rankAssignments(allyTeam, { [myHero.id]: o.pos });
+
+    // Disposição atual: a escolhida com um clique, ou a mais provável (com a sua posição, se escolheu).
+    let allyPositions;
+    let enemyPositions;
+    if (state.scenario) {
+      ({ allyPositions, enemyPositions } = state.scenario);
+    } else {
+      allyPositions = (state.myPos ? allyRankByPos[state.myPos] ?? await rankAssignments(allyTeam, { [myHero.id]: state.myPos }) : allyFree)[0].positions;
+      enemyPositions = enemyRanking[0].positions;
     }
-    const { lane, duo, opponents } = laneMatchup(me, allies, enemies);
+    const myPos = allyPositions[myHero.id];
+    const { lane, duoId, opponents: opponentIds } = laneMatchup(myHero.id, myPos, allyPositions, enemyPositions);
+
+    const withHero = (id, positions) => ({ hero: heroes.byId.get(Number(id)), pos: positions[id] });
+    const me = withHero(myHero.id, allyPositions);
+    const duo = duoId ? withHero(duoId, allyPositions) : null;
+    const opponents = opponentIds.map((id) => withHero(id, enemyPositions));
+    const enemies = Object.keys(enemyPositions).map((id) => withHero(id, enemyPositions));
+
+    const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+    const scenarios = laneScenarios({ myHeroId: myHero.id, myPosOptions, allyRankByPos, enemyRanking })
+      .map((s) => ({ ...s, chance: pct(s.chance), current: s.myPos === myPos && sameSet(s.opponents, opponentIds) }));
+
     let myMatchups = null;
     try {
       myMatchups = await matchups(myHero.id);
@@ -216,16 +261,19 @@ async function analyze() {
     } catch (err) {
       options.log(`Build indisponível agora: ${err.message}`);
     }
+
     state.analysis = {
       lane,
-      me: { heroId: me.hero.id, pos: me.pos, posName: POSITION_NAMES[me.pos] },
+      side: myTeamIdx === 0 ? 'Radiant' : 'Dire',
+      me: { heroId: myHero.id, pos: myPos, posName: POSITION_NAMES[myPos] },
       duo: duo && { heroId: duo.hero.id, pos: duo.pos },
       opponents: opponents.map((o) => ({ heroId: o.hero.id, pos: o.pos })),
-      allies: allies.map((a) => ({ heroId: a.hero.id, pos: a.pos })),
+      allies: Object.entries(allyPositions).map(([id, pos]) => ({ heroId: Number(id), pos })),
       enemies: enemies.map((e) => ({ heroId: e.hero.id, pos: e.pos })),
+      myPosOptions: myPosOptions.map((o) => ({ pos: o.pos, chance: pct(o.p) })),
+      scenarios,
       ...analyzeLane({ me, duo, opponents, enemies, myMatchups }),
       build,
-      side: myTeamIdx === 0 ? 'Radiant' : 'Dire',
     };
   } catch (err) {
     options.log(`Análise da lane falhou: ${err.message}`);
@@ -241,6 +289,7 @@ export function getMatchView() {
     myHeroName: state.myHeroName,
     myTeam: state.myTeam,
     myPos: state.myPos,
+    scenarioChosen: Boolean(state.scenario),
     scan: state.scan,
     slots: state.slots,
     analysis: state.analysis,

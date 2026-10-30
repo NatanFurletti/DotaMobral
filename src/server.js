@@ -16,7 +16,7 @@ import { LAUNCH_OPTION, clearGsiStatusCache, gsiStatus, installCfg } from './gsi
 import { queueTestSounds } from './sound-test.js';
 import { LAST_CAPTURE_PNG } from './capture.js';
 import { loadHeroes } from './heroes.js';
-import { clearMatch, configureMatch, getMatchView, onGsi, scan, setMyPosition, setSlotHero } from './match.js';
+import { applyScenario, clearMatch, configureMatch, getMatchView, onGsi, scan, setMyPosition, setSlotHero } from './match.js';
 import { ensureTemplates } from './templates.js';
 import { readFileSync } from 'node:fs';
 
@@ -201,6 +201,8 @@ async function handleApi(req, res, route) {
       return send(res, 200, await setSlotHero(Number(body.slot), body.heroId ? Number(body.heroId) : null));
     case '/api/match/position':
       return send(res, 200, await setMyPosition(body.pos ? Number(body.pos) : null));
+    case '/api/match/scenario':
+      return send(res, 200, await applyScenario(Number(body.index)));
     case '/api/match/clear':
       return send(res, 200, clearMatch());
     case '/api/test-sounds':

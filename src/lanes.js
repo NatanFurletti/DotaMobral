@@ -9,15 +9,15 @@ export const POSITION_NAMES = {
   4: 'pos 4 (suporte da offlane)',
   5: 'pos 5 (suporte da safe lane)',
 };
-const LANE_OF = { 1: 'safe', 5: 'safe', 2: 'mid', 3: 'off', 4: 'off' };
+export const LANE_OF = { 1: 'safe', 5: 'safe', 2: 'mid', 3: 'off', 4: 'off' };
 const PARTNER = { 1: 5, 5: 1, 3: 4, 4: 3, 2: null };
 // A safe lane de um time enfrenta a offlane do outro.
-const ENEMY_POSITIONS = { safe: [3, 4], off: [1, 5], mid: [2] };
+export const ENEMY_POSITIONS = { safe: [3, 4], off: [1, 5], mid: [2] };
 
-function permutations(items) {
+const ALL_PERMS = (function permutations(items) {
   if (items.length <= 1) return [items];
   return items.flatMap((item, i) => permutations([...items.slice(0, i), ...items.slice(i + 1)]).map((p) => [item, ...p]));
-}
+})([1, 2, 3, 4, 5]);
 
 // Chance relativa de cada herói jogar em cada posição.
 function positionWeights(hero, lanes) {
@@ -35,9 +35,12 @@ function positionWeights(hero, lanes) {
   };
 }
 
-// Distribui as posições 1-5 entre 5 heróis da forma mais provável.
-// fixed: { heroId: posição } para posições já conhecidas (ex.: a que você escolheu).
-export async function assignPositions(team, fixed = {}) {
+/**
+ * Todas as formas de distribuir as posições 1-5 no time, da mais provável para a menos.
+ * fixed: { heroId: posição } para posições já definidas (ex.: a que você escolheu).
+ * Retorna [{ positions: { heroId: pos }, p }] com p somando 1.
+ */
+export async function rankAssignments(team, fixed = {}) {
   const weights = await Promise.all(team.map(async (hero) => {
     try {
       return positionWeights(hero, await laneShares(hero.id));
@@ -45,19 +48,68 @@ export async function assignPositions(team, fixed = {}) {
       return positionWeights(hero, { safe: 0.34, mid: 0.33, off: 0.33 });
     }
   }));
-  let best = { score: -Infinity, perm: [1, 2, 3, 4, 5] };
-  for (const perm of permutations([1, 2, 3, 4, 5])) {
+  const ranked = [];
+  for (const perm of ALL_PERMS) {
     if (team.some((h, i) => fixed[h.id] && fixed[h.id] !== perm[i])) continue;
-    const score = perm.reduce((s, pos, i) => s + Math.log(weights[i][pos]), 0);
-    if (score > best.score) best = { score, perm };
+    const logp = perm.reduce((s, pos, i) => s + Math.log(weights[i][pos]), 0);
+    ranked.push({ positions: Object.fromEntries(team.map((h, i) => [h.id, perm[i]])), logp });
   }
-  return team.map((hero, i) => ({ hero, pos: best.perm[i] }));
+  const top = Math.max(...ranked.map((r) => r.logp));
+  const total = ranked.reduce((s, r) => s + Math.exp(r.logp - top), 0);
+  return ranked
+    .map((r) => ({ positions: r.positions, p: Math.exp(r.logp - top) / total }))
+    .sort((a, b) => b.p - a.p);
 }
 
-// Monta o confronto da sua lane: você, seu duo e os inimigos que devem estar lá.
-export function laneMatchup(me, allies, enemies) {
-  const lane = LANE_OF[me.pos];
-  const duo = PARTNER[me.pos] ? allies.find((a) => a.pos === PARTNER[me.pos]) ?? null : null;
-  const opponents = ENEMY_POSITIONS[lane].map((p) => enemies.find((e) => e.pos === p)).filter(Boolean);
-  return { lane, duo, opponents };
+// Chance de um herói estar em cada posição, somando todas as distribuições.
+export function positionChances(ranking, heroId) {
+  const chances = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const r of ranking) chances[r.positions[heroId]] += r.p;
+  return chances;
+}
+
+// Você, seu duo e os inimigos da sua lane, dadas as posições de cada time.
+export function laneMatchup(myHeroId, myPos, allyPositions, enemyPositions) {
+  const lane = LANE_OF[myPos];
+  const partner = PARTNER[myPos];
+  const duoId = partner ? Number(Object.keys(allyPositions).find((id) => allyPositions[id] === partner)) : null;
+  const opponents = ENEMY_POSITIONS[lane]
+    .map((p) => Number(Object.keys(enemyPositions).find((id) => enemyPositions[id] === p)))
+    .filter(Boolean);
+  return { lane, duoId: duoId || null, opponents };
+}
+
+/**
+ * Cenários alternativos da sua lane, do mais provável ao menos:
+ * combina as suas posições possíveis com as duplas inimigas possíveis naquela lane.
+ * Cada cenário traz as posições completas dos dois times, prontas para aplicar com um clique.
+ */
+export function laneScenarios({ myHeroId, myPosOptions, allyRankByPos, enemyRanking, limit = 6 }) {
+  const scenarios = [];
+  for (const { pos: myPos, p: pMe } of myPosOptions) {
+    const allyBest = allyRankByPos[myPos]?.[0];
+    if (!allyBest) continue;
+    const lanePositions = ENEMY_POSITIONS[LANE_OF[myPos]];
+    // Agrupa as distribuições inimigas pela dupla (ou herói, no mid) que cai na sua lane.
+    const groups = new Map();
+    for (const r of enemyRanking) {
+      const ids = lanePositions.map((p) => Number(Object.keys(r.positions).find((id) => r.positions[id] === p)));
+      const key = [...ids].sort((a, b) => a - b).join(',');
+      const g = groups.get(key) ?? { p: 0, best: r };
+      g.p += r.p;
+      groups.set(key, g);
+    }
+    for (const g of groups.values()) {
+      const { duoId, opponents } = laneMatchup(myHeroId, myPos, allyBest.positions, g.best.positions);
+      scenarios.push({
+        myPos,
+        duoId,
+        opponents,
+        chance: pMe * g.p,
+        allyPositions: allyBest.positions,
+        enemyPositions: g.best.positions,
+      });
+    }
+  }
+  return scenarios.sort((a, b) => b.chance - a.chance).slice(0, limit);
 }
