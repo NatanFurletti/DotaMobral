@@ -76,6 +76,12 @@ export async function matchups(heroId) {
   return new Map(rows.map((r) => [r.hero_id, { games: r.games_played, wins: r.wins }]));
 }
 
+// Distribuição do ouro por minuto (GPM final) nas partidas do herói: [{ percentile, value }].
+export async function gpmBenchmarks(heroId) {
+  const raw = await cachedJson(`gpm-${heroId}.json`, `${API}/benchmarks?hero_id=${heroId}`, 7 * DAY);
+  return (raw.result?.gold_per_min ?? []).map((r) => ({ p: Number(r.percentile), v: Number(r.value) })).sort((a, b) => a.p - b.p);
+}
+
 // --- Itens -------------------------------------------------------------------
 
 let itemsPromise = null;

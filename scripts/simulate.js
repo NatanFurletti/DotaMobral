@@ -17,7 +17,7 @@ const to = opt.to ?? 480;
 const speed = opt.speed ?? 10;
 const extra = {
   ...(opt.hero && { hero: { name: `npc_dota_hero_${opt.hero}`, level: 1, alive: true } }),
-  ...(opt.team && { player: { team_name: opt.team } }),
+  ...((opt.team || opt.gpm) && { player: { team_name: opt.team, gpm: opt.gpm } }),
 };
 const url = `http://127.0.0.1:${appConfig.port}/`;
 

@@ -18,6 +18,7 @@ import { LAST_CAPTURE_PNG } from './capture.js';
 import { loadHeroes } from './heroes.js';
 import { applyScenario, clearMatch, configureMatch, getMatchView, onGsi, scan, setMyPosition, setSlotHero } from './match.js';
 import { ensureTemplates } from './templates.js';
+import { getFarmView, updateFarm } from './farm.js';
 import { readFileSync } from 'node:fs';
 
 const VERSION = '0.3.0';
@@ -90,6 +91,8 @@ function handleGsi(state) {
   }
   engine.update(state);
   onGsi(state, previousGameState);
+  updateFarm(state);
+  getFarmView(settings.mode).then((v) => { farmView = v; }, () => {});
 }
 
 // --- Interface (API) ----------------------------------------------------------
@@ -101,6 +104,8 @@ const GAME_STATES = {
   DOTA_GAMERULES_STATE_GAME_IN_PROGRESS: 'Partida em andamento',
   DOTA_GAMERULES_STATE_POST_GAME: 'Fim de jogo',
 };
+
+let farmView = null;
 
 function stateForUi() {
   const timers = buildTimers(settings);
@@ -114,6 +119,7 @@ function stateForUi() {
     },
     settings: { mode: settings.mode, volume: settings.volume, soundVolume: settings.soundVolume, autoScan: settings.autoScan !== false },
     match: getMatchView(),
+    farm: farmView,
     events: timers.events.map((e) => ({
       id: e.id,
       label: e.label,
