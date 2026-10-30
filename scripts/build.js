@@ -17,6 +17,7 @@ const ASSETS = [
   'config/app.json',
   'config/timers.json',
   'config/timers-turbo.json',
+  'config/hero-traits.json',
   'ui/index.html',
   'sounds/bounty.wav',
   'sounds/power.wav',

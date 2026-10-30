@@ -35,6 +35,7 @@ const clamp = (n, min, max) => Math.min(Math.max(Number(n) || 0, min), max);
 export function mergeSettings(settings, patch) {
   const next = { ...settings, events: { ...settings.events } };
   if (patch.mode === 'normal' || patch.mode === 'turbo') next.mode = patch.mode;
+  if (patch.autoScan !== undefined) next.autoScan = Boolean(patch.autoScan);
   if (patch.volume !== undefined) next.volume = clamp(patch.volume, 0, 100);
   if (patch.soundVolume !== undefined) next.soundVolume = clamp(patch.soundVolume, 0, 100);
   for (const [id, change] of Object.entries(patch.events ?? {})) {

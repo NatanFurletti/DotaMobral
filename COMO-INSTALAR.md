@@ -71,6 +71,19 @@ Na página do DotaMobral, na parte **"Configuração do Dota"**:
 3. Quando a partida começar, o indicador no topo da página fica **verde: "Dota conectado"**.
 4. Pronto! Os sons tocam sozinhos, uns segundos antes de cada evento.
 
+### Sua lane (heróis da partida)
+
+No **pré-jogo** (antes da buzina), o DotaMobral lê os 10 heróis na barra superior do jogo e mostra
+na página: seu duo, os inimigos prováveis da sua lane, se o confronto tende a ser favorável ou não
+(e por quê) e itens úteis para aquela partida.
+
+- Para funcionar, use o Dota em **Janela sem bordas** (Configurações → Vídeo → Modo de exibição).
+  Em tela cheia o Windows pode devolver a captura preta.
+- Se algum herói vier errado, corrija em **"Os 10 heróis"**. Se a posição estimada não for a sua,
+  escolha em **"Minha posição"**.
+- A leitura usa só a barra superior (que todos os jogadores veem), uma vez por partida. Pode ser
+  desligada na própria página.
+
 Na página também dá para:
 - mudar o **volume** dos sons e da voz;
 - **ligar/desligar** cada aviso e escolher **quantos segundos antes** ele toca;

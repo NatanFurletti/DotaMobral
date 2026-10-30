@@ -14,6 +14,11 @@ import { TimerEngine, composeMessage, formatClock } from './timers.js';
 import { createSpeaker } from './speaker.js';
 import { LAUNCH_OPTION, clearGsiStatusCache, gsiStatus, installCfg } from './gsi-cfg.js';
 import { queueTestSounds } from './sound-test.js';
+import { LAST_CAPTURE_PNG } from './capture.js';
+import { loadHeroes } from './heroes.js';
+import { clearMatch, configureMatch, getMatchView, onGsi, scan, setMyPosition, setSlotHero } from './match.js';
+import { ensureTemplates } from './templates.js';
+import { readFileSync } from 'node:fs';
 
 const VERSION = '0.2.0';
 const args = new Set(process.argv.slice(2));
@@ -56,6 +61,8 @@ function announce(alerts, clock) {
 
 const engine = new TimerEngine(buildTimers(settings), announce);
 
+configureMatch({ autoScan: () => settings.autoScan !== false, log: (msg) => console.log(msg) });
+
 // --- GSI --------------------------------------------------------------------
 
 let recorder = null;
@@ -76,11 +83,13 @@ function handleGsi(state) {
   status.lastPacket = Date.now();
   status.clock = typeof state.map?.clock_time === 'number' ? state.map.clock_time : null;
   const gameState = state.map?.game_state ?? null;
+  const previousGameState = status.gameState;
   if (gameState !== status.gameState) {
     status.gameState = gameState;
     console.log(`Estado: ${gameState ?? 'fora de partida'}`);
   }
   engine.update(state);
+  onGsi(state, previousGameState);
 }
 
 // --- Interface (API) ----------------------------------------------------------
@@ -103,7 +112,8 @@ function stateForUi() {
       gameState: status.gameState ? (GAME_STATES[status.gameState] ?? status.gameState) : null,
       lastAlert: status.lastAlert,
     },
-    settings: { mode: settings.mode, volume: settings.volume, soundVolume: settings.soundVolume },
+    settings: { mode: settings.mode, volume: settings.volume, soundVolume: settings.soundVolume, autoScan: settings.autoScan !== false },
+    match: getMatchView(),
     events: timers.events.map((e) => ({
       id: e.id,
       label: e.label,
@@ -155,6 +165,17 @@ async function handleApi(req, res, route) {
   if (req.method === 'POST' && origin && !ALLOWED_ORIGINS.has(origin)) return send(res, 403, { error: 'origem' });
 
   if (req.method === 'GET' && route === '/api/state') return send(res, 200, stateForUi());
+  if (req.method === 'GET' && route === '/api/heroes') {
+    const heroes = await loadHeroes();
+    return send(res, 200, heroes.list.map((h) => ({ id: h.id, label: h.label, icon: h.icon, img: h.img })));
+  }
+  if (req.method === 'GET' && route === '/api/match/capture.png') {
+    try {
+      return send(res, 200, readFileSync(LAST_CAPTURE_PNG), 'image/png');
+    } catch {
+      return send(res, 404, { error: 'ainda não há captura' });
+    }
+  }
   if (req.method !== 'POST') return send(res, 405, { error: 'método' });
 
   let body = {};
@@ -174,6 +195,14 @@ async function handleApi(req, res, route) {
       clearGsiStatusCache();
       return send(res, 200, result);
     }
+    case '/api/match/scan':
+      return send(res, 200, await scan('manual'));
+    case '/api/match/slot':
+      return send(res, 200, await setSlotHero(Number(body.slot), body.heroId ? Number(body.heroId) : null));
+    case '/api/match/position':
+      return send(res, 200, await setMyPosition(body.pos ? Number(body.pos) : null));
+    case '/api/match/clear':
+      return send(res, 200, clearMatch());
     case '/api/test-sounds':
       queueTestSounds(speaker, buildTimers(settings));
       return send(res, 200, { ok: true });
@@ -253,6 +282,10 @@ server.listen(port, '127.0.0.1', () => {
   console.log('');
   speaker.say(`Assistente de Dota pronto, modo ${settings.mode}`);
   openBrowser();
+  // Deixa os retratos de referência prontos antes da partida (baixa só na primeira vez).
+  ensureTemplates({ log: (msg) => console.log(`   ${msg}`) })
+    .then((t) => console.log(`   Reconhecimento de heróis pronto (${t.length} retratos).`))
+    .catch((err) => console.log(`   Reconhecimento de heróis indisponível agora: ${err.message}`));
 });
 
 function shutdown() {

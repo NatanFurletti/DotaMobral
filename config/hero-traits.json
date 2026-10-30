@@ -1,0 +1,8 @@
+{
+  "_comment": "Características usadas nas dicas de itens. Nomes curtos dos heróis (sem npc_dota_hero_). Lista revisável: confira a cada patch.",
+  "invisibility": ["riki", "bounty_hunter", "clinkz", "nyx_assassin", "weaver", "mirana", "invoker", "treant", "broodmother"],
+  "healing": ["necrolyte", "witch_doctor", "huskar", "alchemist", "oracle", "dazzle", "omniknight", "wisp", "treant", "undying", "abaddon", "warlock", "enchantress"],
+  "illusions": ["phantom_lancer", "naga_siren", "chaos_knight", "terrorblade"],
+  "summons": ["lycan", "broodmother", "beastmaster", "visage", "lone_druid", "furion", "warlock", "invoker", "chen", "enchantress"],
+  "evasion": ["phantom_assassin", "windrunner", "brewmaster"]
+}

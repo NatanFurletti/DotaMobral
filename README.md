@@ -18,6 +18,11 @@ oferece: o jogo envia o relógio da partida para o programa, no seu computador.
   jogador faria de cabeça.
 - Nada sai do seu computador: a interface roda em `http://127.0.0.1`.
 
+**Sua lane:** no pré-jogo, o app captura **uma vez** só a faixa da barra superior (os 10 retratos que
+todos os jogadores veem) e reconhece os heróis no próprio PC, comparando com os retratos oficiais.
+Nunca o minimapa, nunca durante a partida. Com isso estima posições, seu duo, os inimigos da lane,
+o confronto (estatísticas públicas do OpenDota) e itens úteis. Dá para desligar e corrigir tudo na página.
+
 Os sons são **originais, sintetizados por código** (`scripts/generate-sounds.js`). Nada vem do jogo.
 
 ---
@@ -46,6 +51,11 @@ Outros comandos: `npm run test-sounds`, `npm run generate-sounds`, `npm run inst
 | `src/speaker.js` | Voz (System.Speech) e sons (winmm) do Windows, via PowerShell |
 | `src/settings.js` | Preferências do usuário em `%APPDATA%\DotaMobral\settings.json` |
 | `src/gsi-cfg.js` | Instala o `.cfg` da GSI na pasta do Dota e verifica a opção da Steam |
+| `src/capture.js` | Captura só a faixa da barra superior (.NET/PowerShell) |
+| `src/recognize.js` | Reconhece os 10 retratos (calibra sozinho a partir do seu herói) |
+| `src/lanes.js`, `src/advice.js` | Posições prováveis, confronto da lane e itens úteis |
+| `src/match.js` | Quando ler (pré-jogo, uma vez) e estado da partida |
+| `config/hero-traits.json` | Heróis com invisibilidade, cura, ilusões etc. (revisar a cada patch) |
 | `ui/index.html` | Interface |
 | `config/timers.json`, `config/timers-turbo.json` | Tempos de cada modo (**mudam com os patches**) |
 | `scripts/build.js` | Empacota tudo num `.exe` (Node Single Executable Applications) |

@@ -1,17 +1,22 @@
 // Simula o Dota 2 enviando pacotes GSI, para testar sem abrir o jogo.
 // Uso: npm run simulate -- --from=-20 --to=480 --speed=10
 //      (speed = segundos de jogo por segundo real)
+//      --hero=juggernaut --team=radiant  (opcional: seu herói e time, como a GSI envia)
 import { appConfig } from '../src/config.js';
 
 const opt = Object.fromEntries(
   process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => {
     const [k, v] = a.slice(2).split('=');
-    return [k, Number(v)];
+    return [k, Number.isNaN(Number(v)) ? v : Number(v)];
   }),
 );
 const from = opt.from ?? -20;
 const to = opt.to ?? 480;
 const speed = opt.speed ?? 10;
+const extra = {
+  ...(opt.hero && { hero: { name: `npc_dota_hero_${opt.hero}`, level: 1, alive: true } }),
+  ...(opt.team && { player: { team_name: opt.team } }),
+};
 const url = `http://127.0.0.1:${appConfig.port}/`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -29,6 +34,7 @@ for (let clock = from; clock <= to; clock++) {
       game_state: clock < 0 ? 'DOTA_GAMERULES_STATE_PRE_GAME' : 'DOTA_GAMERULES_STATE_GAME_IN_PROGRESS',
       paused: false,
     },
+    ...extra,
     auth: { token: appConfig.token },
   };
   try {
