@@ -90,13 +90,15 @@ export function loadItems() {
     .then((raw) => {
       const byKey = new Map();
       const byId = new Map();
+      // Itens que são peça de outro item (ex.: Yasha, Void Stone): úteis só como passo intermediário.
+      const components = new Set(Object.values(raw).flatMap((it) => it?.components ?? []));
       for (const [key, it] of Object.entries(raw)) {
         if (!it?.id || !it.img) continue;
         const item = { key, id: it.id, name: it.dname ?? key, cost: it.cost ?? 0, img: CDN + String(it.img).replace(/\?.*$/, '') };
         byKey.set(key, item);
         byId.set(it.id, item);
       }
-      return { byKey, byId };
+      return { byKey, byId, components };
     })
     .catch((err) => {
       itemsPromise = null;

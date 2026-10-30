@@ -1,4 +1,4 @@
-// Monta a "BUILD" da partida: itens de lane (baratos), itens de meio/fim (caros) e ordem de skills.
+// Monta a "BUILD" da partida: itens da fase de lane, itens de meio/fim e ordem de skills.
 // Junta o que é mais comprado com o seu herói (dados públicos do OpenDota) com os itens
 // que respondem a ESTA partida (regras em advice.js).
 import { counterItems } from './advice.js';
@@ -10,14 +10,26 @@ const SKIP = new Set([
   'ward_dispenser', 'smoke_of_deceit', 'tpscroll', 'branches', 'blood_grenade', 'dust',
   'tome_of_knowledge', 'famango', 'great_famango', 'greater_famango', 'aegis', 'cheese', 'refresher_shard',
 ]);
-const LANE_COST = [400, 2600]; // itens de começo: baratos
-const LATE_MIN_COST = 1500; // itens de meio/fim: mais caros
+// Melhoram habilidades do herói: entram sempre que o herói costuma comprá-los.
+const AGHANIMS = new Set(['aghanims_shard', 'ultimate_scepter']);
+// Peças de outros itens que mesmo assim valem como item na build.
+const KEEP_COMPONENTS = new Set([
+  'boots', 'wind_lace', 'magic_stick', 'blink', 'force_staff', 'ghost', 'arcane_boots', 'glimmer_cape',
+  'urn_of_shadows', 'maelstrom', 'orchid', 'dragon_lance', 'mekansm', 'vanguard', 'diffusal_blade',
+  'aghanims_shard', 'ultimate_scepter', 'blade_mail', 'echo_sabre', 'kaya', 'power_treads', 'phase_boots',
+  'tranquil_boots', 'medallion_of_courage', 'veil_of_discord', 'pavise', 'bracer', 'wraith_band', 'null_talisman',
+]);
+const LANE_COST = [400, 2600]; // fase de lane: itens baratos
+const LATE_MIN_COST = 1200; // meio/fim: itens completos (abaixo disso, quase sempre componentes)
+const LANE_MAX = 6;
+const LATE_MAX = 7;
 
 export async function buildGuide({ me, opponents, enemies }) {
   const items = await loadItems();
-  const toItem = (key, why = null, counter = false) => {
+  const heroName = me.hero.label;
+  const toItem = (key, why = null, kind = 'popular') => {
     const it = items.byKey.get(key);
-    return it ? { key, name: it.name, img: it.img, cost: it.cost, why, counter } : null;
+    return it ? { key, name: it.name, img: it.img, cost: it.cost, why, kind, counter: kind === 'counter' } : null;
   };
   const counters = counterItems({ me, opponents, enemies });
   let popular = null;
@@ -25,35 +37,52 @@ export async function buildGuide({ me, opponents, enemies }) {
     popular = await itemPopularity(me.hero.id);
   } catch { /* sem internet: só as regras */ }
 
-  const pick = (lists, accept, limit, exclude) => {
-    const keys = [];
-    for (const [id] of lists.flat()) {
-      const it = items.byId.get(id);
-      if (!it || SKIP.has(it.key) || !accept(it) || keys.includes(it.key) || exclude.has(it.key)) continue;
-      keys.push(it.key);
-      if (keys.length >= limit) break;
-    }
-    return keys;
+  // Soma as compras de várias fases e ordena do mais comprado para o menos.
+  const ranked = (lists) => {
+    const total = new Map();
+    for (const list of lists) for (const [id, n] of list) total.set(id, (total.get(id) ?? 0) + n);
+    return [...total.entries()]
+      .map(([id, n]) => ({ it: items.byId.get(id), n }))
+      .filter((x) => x.it && !SKIP.has(x.it.key))
+      // Peças soltas (ex.: Void Stone, Yasha) só atrapalham: fica o item completo.
+      .filter((x) => !items.components.has(x.it.key) || KEEP_COMPONENTS.has(x.it.key))
+      .sort((a, b) => b.n - a.n);
   };
+  const popularWhy = `Muito comprado com ${heroName} nas partidas recentes.`;
 
-  // Lane: rota mais comum do herói + itens contra a sua lane.
+  // Fase de lane: rota mais comum do herói + itens baratos contra a sua lane.
   const laneCounters = counters.filter((c) => c.when === 'lane').slice(0, 2);
-  const laneKeys = popular
-    ? pick([popular.early, popular.start], (it) => it.cost >= LANE_COST[0] && it.cost <= LANE_COST[1], 3, new Set(laneCounters.map((c) => c.key)))
-    : [];
-  const lane = [...laneKeys.map((k) => toItem(k)), ...laneCounters.map((c) => toItem(c.key, c.why, true))].filter(Boolean);
+  const lane = laneCounters.map((c) => toItem(c.key, c.why, 'counter'));
+  if (popular) {
+    for (const { it } of ranked([popular.early, popular.start])) {
+      if (lane.length >= LANE_MAX) break;
+      if (it.cost < LANE_COST[0] || it.cost > LANE_COST[1] || lane.some((x) => x?.key === it.key)) continue;
+      lane.splice(lane.length - laneCounters.length, 0, toItem(it.key, popularWhy)); // rota antes dos itens de resposta
+    }
+  }
 
-  // Meio/fim: até 2 itens contra o time inimigo + os mais comprados com o herói.
-  const lateCounters = counters.filter((c) => c.when === 'partida').slice(0, 2);
-  const lateKeys = popular
-    ? pick([popular.mid, popular.late], (it) => it.cost >= LATE_MIN_COST, 4 - lateCounters.length, new Set([...lateCounters.map((c) => c.key), ...laneKeys]))
-    : [];
-  const late = [...lateCounters.map((c) => toItem(c.key, c.why, true)), ...lateKeys.map((k) => toItem(k))].filter(Boolean);
+  // Meio/fim: itens contra o time inimigo, Shard/Scepter do herói e os mais comprados.
+  const used = new Set(lane.filter(Boolean).map((x) => x.key));
+  const late = counters.filter((c) => c.when === 'partida' && !used.has(c.key)).slice(0, 2).map((c) => toItem(c.key, c.why, 'counter'));
+  if (popular) {
+    const pop = ranked([popular.mid, popular.late]);
+    const top = pop[0]?.n ?? 0;
+    for (const { it, n } of pop) {
+      if (AGHANIMS.has(it.key) && n >= top * 0.2 && !late.some((x) => x?.key === it.key)) {
+        late.push(toItem(it.key, `${it.name}: melhora habilidades do ${heroName}; muito usado com ele.`, 'aghanim'));
+      }
+    }
+    for (const { it } of pop) {
+      if (late.length >= LATE_MAX) break;
+      if (it.cost < LATE_MIN_COST || used.has(it.key) || late.some((x) => x?.key === it.key)) continue;
+      late.push(toItem(it.key, popularWhy));
+    }
+  }
 
   let skills = null;
   try {
     skills = await skillBuild(me.hero);
   } catch { /* sem dados de skills agora */ }
 
-  return { lane, late, skills, basedOnPopular: Boolean(popular) };
+  return { lane: lane.filter(Boolean), late: late.filter(Boolean).slice(0, LATE_MAX), skills, basedOnPopular: Boolean(popular) };
 }
