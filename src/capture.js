@@ -110,10 +110,10 @@ ConvertTo-Json -Compress @($names)
 `;
 
 // Captura a faixa (da janela do Dota, ou de um arquivo de imagem para testes/calibração).
-export async function captureStrip({ file = process.env.DOTAMOBRAL_TEST_IMAGE } = {}) {
+export async function captureStrip({ file = process.env.DOTAMOBRAL_TEST_IMAGE, fraction = STRIP_FRACTION } = {}) {
   const raw = path.join(DATA_DIR, 'ultima-barra.raw');
   const meta = JSON.parse(await runPowerShell(CAPTURE_SCRIPT, {
-    DM_FRAC: String(STRIP_FRACTION),
+    DM_FRAC: String(fraction),
     DM_PNG: LAST_CAPTURE_PNG,
     DM_RAW: raw,
     DM_FILE: file ?? '',

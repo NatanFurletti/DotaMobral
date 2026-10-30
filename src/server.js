@@ -20,7 +20,7 @@ import { clearMatch, configureMatch, getMatchView, onGsi, scan, setMyPosition, s
 import { ensureTemplates } from './templates.js';
 import { readFileSync } from 'node:fs';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const args = new Set(process.argv.slice(2));
 const mute = args.has('--mute');
 const record = args.has('--record');
@@ -247,12 +247,26 @@ function openBrowser() {
   spawn('rundll32', ['url.dll,FileProtocolHandler', UI_URL], { detached: true, stdio: 'ignore' }).unref();
 }
 
+let replacingOld = false;
 server.on('error', async (err) => {
   if (err.code === 'EADDRINUSE') {
     // Já existe um DotaMobral aberto? Então só mostra a interface dele.
     try {
       const r = await fetch(`${UI_URL}api/state`);
       const other = r.ok ? await r.json().catch(() => null) : null;
+      // Uma versão diferente está aberta (ex.: a antiga): fecha ela e assume o lugar.
+      if (other?.version && other.version !== VERSION && !replacingOld) {
+        replacingOld = true;
+        console.log(`Fechando o DotaMobral ${other.version} que estava aberto...`);
+        await fetch(`${UI_URL}api/quit`, { method: 'POST', body: '{}' }).catch(() => {});
+        for (let i = 0; i < 20; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          const stillOpen = await fetch(`${UI_URL}api/state`).then(() => true, () => false);
+          if (!stillOpen) break;
+        }
+        server.listen(port, '127.0.0.1');
+        return;
+      }
       if (other?.version) {
         console.log('O DotaMobral já está aberto. Abrindo a interface...');
         openBrowser();

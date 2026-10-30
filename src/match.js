@@ -1,18 +1,22 @@
 // Estado da partida atual: quem são os 10 heróis, sua lane e as dicas.
 //
 // Regras de captura (fixas no código):
-//  - automática: UMA vez por partida, no pré-jogo (com uma nova tentativa se falhar);
+//  - automática: no tempo de estratégia (o draft já terminou e os 10 heróis estão na tela);
+//    se não der certo, no pré-jogo (com uma nova tentativa). Nunca durante a escolha de heróis;
 //  - manual: só quando você aperta "Ler heróis agora";
 //  - sempre só a faixa da barra superior (nunca minimapa, nunca durante a luta).
 import { analyzeLane, suggestItems } from './advice.js';
 import { captureStrip } from './capture.js';
 import { loadHeroes, matchups } from './heroes.js';
 import { POSITION_NAMES, assignPositions, laneMatchup } from './lanes.js';
-import { recognizeTopBar } from './recognize.js';
+import { LAYOUTS, recognizeTopBar } from './recognize.js';
 import { ensureTemplates } from './templates.js';
 
+const HERO_SELECTION = 'DOTA_GAMERULES_STATE_HERO_SELECTION';
+const STRATEGY = 'DOTA_GAMERULES_STATE_STRATEGY_TIME';
 const PRE_GAME = 'DOTA_GAMERULES_STATE_PRE_GAME';
-const AUTO_DELAYS_MS = [4000, 15000]; // primeira tentativa e nova tentativa
+const STRATEGY_DELAY_MS = 2500; // espera a tela de estratégia aparecer
+const PRE_GAME_DELAYS_MS = [4000, 15000]; // primeira tentativa e nova tentativa
 
 const empty = () => ({
   matchId: null,
@@ -20,8 +24,9 @@ const empty = () => ({
   myTeam: null,
   slots: Array(10).fill(null), // 0-4 Radiant, 5-9 Dire: { heroId, confidence, manual }
   myPos: null, // escolhida por você (null = automática)
-  autoAttempts: 0,
-  scan: { status: 'aguardando', message: 'Os heróis são lidos automaticamente no pré-jogo.' },
+  gameState: null,
+  auto: { strategy: false, preGame: false },
+  scan: { status: 'aguardando', message: 'Os heróis são lidos automaticamente no tempo de estratégia.' },
   analysis: null,
   version: 0,
 });
@@ -29,6 +34,9 @@ const empty = () => ({
 let state = empty();
 let timers = [];
 let scanning = false;
+// Captura do tempo de estratégia que não deu para ler (ainda sem calibração):
+// usada para calibrar essa barra assim que a leitura do pré-jogo der certo.
+let pendingStrategyStrip = null;
 let options = { autoScan: () => true, log: () => {} };
 
 export function configureMatch(opts) {
@@ -41,7 +49,11 @@ function resetMatch(matchId) {
   timers.forEach(clearTimeout);
   timers = [];
   const myPos = state.myPos;
-  state = { ...empty(), matchId, myPos, version: state.version + 1 };
+  // Se a partida anterior não tinha id (a GSI pode mandar o id só depois), é a mesma partida.
+  const sameMatch = state.matchId === null;
+  if (!sameMatch) pendingStrategyStrip = null;
+  const keep = sameMatch ? { auto: state.auto, slots: state.slots, scan: state.scan, myHeroName: state.myHeroName, myTeam: state.myTeam } : {};
+  state = { ...empty(), ...keep, matchId, myPos, version: state.version + 1 };
 }
 
 // Chamado a cada pacote da GSI.
@@ -53,6 +65,8 @@ export function onGsi(gsi, previousGameState) {
   if (heroName && heroName !== state.myHeroName) {
     state.myHeroName = heroName;
     bump();
+    // Heróis já lidos antes de a GSI informar o seu: agora dá para montar a análise.
+    if (state.slots.every(Boolean)) analyze().catch(() => {});
   }
   const team = gsi.player?.team_name;
   if ((team === 'radiant' || team === 'dire') && team !== state.myTeam) {
@@ -61,18 +75,49 @@ export function onGsi(gsi, previousGameState) {
   }
 
   const gameState = gsi.map?.game_state;
-  if (gameState === PRE_GAME && previousGameState !== PRE_GAME && state.autoAttempts === 0 && options.autoScan()) {
+  state.gameState = gameState ?? null;
+  const entered = (s) => gameState === s && previousGameState !== s;
+  if (!options.autoScan()) return;
+
+  if (entered(STRATEGY) && !state.auto.strategy) {
+    state.auto.strategy = true;
+    state.scan = { status: 'aguardando', message: 'Tempo de estratégia: lendo os heróis em instantes...' };
+    bump();
+    timers.push(setTimeout(() => scan('tempo de estratégia', 'strategy').catch(() => {}), STRATEGY_DELAY_MS));
+  }
+
+  // Reserva: se não leu no tempo de estratégia, tenta no pré-jogo.
+  if (entered(PRE_GAME) && !state.auto.preGame && state.scan.status !== 'pronto') {
+    state.auto.preGame = true;
     state.scan = { status: 'aguardando', message: 'Pré-jogo: lendo os heróis em instantes...' };
     bump();
-    timers = AUTO_DELAYS_MS.map((delay, i) => setTimeout(() => {
-      if (i > 0 && state.scan.status === 'pronto') return; // a primeira deu certo
-      state.autoAttempts++;
-      scan('automática').catch(() => {});
-    }, delay));
+    PRE_GAME_DELAYS_MS.forEach((delay) => timers.push(setTimeout(() => {
+      if (state.scan.status === 'pronto') return;
+      scan('pré-jogo', 'ingame').catch(() => {});
+    }, delay)));
   }
 }
 
-export async function scan(kind = 'manual') {
+// Calibra a barra de estratégia com uma captura guardada, usando os heróis já confirmados.
+function calibrateStrategyLater(templates, myShort) {
+  const strip = pendingStrategyStrip;
+  pendingStrategyStrip = null;
+  if (!strip || !myShort) return;
+  const res = recognizeTopBar(strip, templates, { myHero: myShort, myTeam: state.myTeam, layout: 'strategy' });
+  options.log(res.ok
+    ? 'Barra do tempo de estratégia calibrada: nas próximas partidas os heróis serão lidos mais cedo.'
+    : `Ainda não deu para calibrar a barra de estratégia: ${res.reason}`);
+}
+
+export async function scan(kind = 'manual', layoutName = null) {
+  // Durante a escolha de heróis o draft ainda não terminou: nunca lê.
+  if (state.gameState === HERO_SELECTION) {
+    state.scan = { status: 'aguardando', message: 'A escolha de heróis ainda não terminou. A leitura acontece no tempo de estratégia.' };
+    bump();
+    return getMatchView();
+  }
+  // Manual: usa a barra da tela atual.
+  const layout = layoutName ?? (state.gameState === STRATEGY ? 'strategy' : 'ingame');
   if (scanning) return getMatchView();
   scanning = true;
   state.scan = { status: 'lendo', message: 'Lendo a barra superior...' };
@@ -80,9 +125,17 @@ export async function scan(kind = 'manual') {
   try {
     const [heroes, templates] = await Promise.all([loadHeroes(), ensureTemplates({ log: options.log })]);
     const myShort = state.myHeroName ? heroes.byName.get(state.myHeroName)?.short : null;
-    const strip = await captureStrip();
-    const result = recognizeTopBar(strip, templates, { myHero: myShort, myTeam: state.myTeam });
+    // DOTAMOBRAL_TEST_IMAGE(_STRATEGY): imagem no lugar da tela, só para testes de desenvolvimento.
+    const testImage = process.env[`DOTAMOBRAL_TEST_IMAGE${layout === 'strategy' ? '_STRATEGY' : ''}`];
+    const strip = await captureStrip({ fraction: LAYOUTS[layout].strip, ...(testImage && { file: testImage }) });
+    const result = recognizeTopBar(strip, templates, { myHero: myShort, myTeam: state.myTeam, layout });
     if (!result.ok) {
+      if (layout === 'strategy') {
+        pendingStrategyStrip = strip;
+        state.scan = { status: 'aguardando', message: 'No tempo de estratégia ainda não deu; vou ler no pré-jogo.', at: Date.now(), kind };
+        options.log(`Leitura no tempo de estratégia falhou (${result.reason}); tentando no pré-jogo.`);
+        return getMatchView();
+      }
       state.scan = { status: 'erro', message: result.reason, at: Date.now(), kind };
       options.log(`Leitura de heróis (${kind}) falhou: ${result.reason}`);
       return getMatchView();
@@ -94,6 +147,7 @@ export async function scan(kind = 'manual') {
     });
     state.scan = { status: 'pronto', message: `Heróis lidos (${kind}, ${result.how}).`, at: Date.now(), kind };
     options.log(`Heróis lidos (${kind}): ${result.slots.map((s) => s?.short ?? '?').join(', ')}`);
+    if (layout === 'ingame') calibrateStrategyLater(templates, myShort);
     await analyze();
   } catch (err) {
     state.scan = { status: 'erro', message: `Não deu para ler os heróis: ${err.message}`, at: Date.now(), kind };

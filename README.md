@@ -18,7 +18,7 @@ oferece: o jogo envia o relógio da partida para o programa, no seu computador.
   jogador faria de cabeça.
 - Nada sai do seu computador: a interface roda em `http://127.0.0.1`.
 
-**Sua lane:** no pré-jogo, o app captura **uma vez** só a faixa da barra superior (os 10 retratos que
+**Sua lane:** no tempo de estratégia (draft já terminado; reserva: pré-jogo), o app captura **uma vez** só a faixa da barra superior (os 10 retratos que
 todos os jogadores veem) e reconhece os heróis no próprio PC, comparando com os retratos oficiais.
 Nunca o minimapa, nunca durante a partida. Com isso estima posições, seu duo, os inimigos da lane,
 o confronto (estatísticas públicas do OpenDota) e itens úteis. Dá para desligar e corrigir tudo na página.

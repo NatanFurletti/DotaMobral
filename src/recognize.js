@@ -11,7 +11,12 @@ import { DATA_DIR } from './paths.js';
 export const CROP = { x0: 0.15, x1: 0.85, y0: 0.12, y1: 0.88 };
 export const TEMPLATE_W = 96;
 export const TEMPLATE_H = 54;
-const GEOMETRY_FILE = path.join(DATA_DIR, 'barra-geometria.json');
+// Duas barras diferentes: a do jogo (HUD) e a do tempo de estratégia (retratos maiores, com nomes).
+// Cada uma tem a faixa capturada (fração da altura), o tamanho possível do retrato e a calibração salva.
+export const LAYOUTS = {
+  ingame: { strip: 0.09, hMin: 0.02, hMax: 0.055, file: path.join(DATA_DIR, 'barra-geometria.json') },
+  strategy: { strip: 0.14, hMin: 0.03, hMax: 0.11, file: path.join(DATA_DIR, 'barra-estrategia.json') },
+};
 
 // --- Imagem integral: média de qualquer retângulo em tempo constante ----------
 
@@ -41,6 +46,7 @@ class Integral {
 }
 
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+const MIN_CONTRAST = 8; // desvio padrão mínimo das cores (0-255) para ser um retrato
 
 // Vetor de cores (fw x fh células) do retângulo, normalizado: média zero e norma 1.
 // Assim a comparação ignora diferenças de brilho e contraste.
@@ -69,7 +75,9 @@ function features(I, bx, by, bw, bh, fw, fh, crop) {
     norm += v[n] * v[n];
   }
   norm = Math.sqrt(norm);
-  if (norm < 1e-6) return null; // região lisa (ex.: tela preta)
+  // Região quase lisa (tela preta, retrato vazio): não é um herói. Sem esta trava,
+  // a normalização "esticaria" pequenas variações até parecerem um retrato.
+  if (norm / Math.sqrt(v.length) < MIN_CONTRAST) return null;
   for (let n = 0; n < v.length; n++) v[n] /= norm;
   return v;
 }
@@ -105,14 +113,15 @@ function scoreBox(I, box, tpl, size) {
 }
 
 // Procura o retrato do próprio herói (tamanho, proporção e posição desconhecidos).
-function findPortrait(I, tpl, H, xRange) {
-  const hMin = Math.round(0.02 * H);
-  const hMax = Math.min(Math.round(0.055 * H), I.h);
+function findPortrait(I, tpl, H, xRange, layout) {
+  const hMin = Math.round(layout.hMin * H);
+  const hMax = Math.min(Math.round(layout.hMax * H), I.h);
   const hStep = Math.max(1, Math.round(0.003 * H));
-  const yStep = Math.max(1, Math.round(0.002 * H));
-  const xStep = Math.max(2, Math.round(0.0025 * H));
   const candidates = [];
   for (let h = hMin; h <= hMax; h += hStep) {
+    // Passos proporcionais ao tamanho: retratos grandes não precisam de busca pixel a pixel.
+    const yStep = Math.max(1, Math.round(h * 0.06));
+    const xStep = Math.max(2, Math.round(h * 0.07));
     for (const aspect of [1.35, 1.5, 1.65, 1.8]) {
       const w = Math.round(h * aspect);
       for (let y = 0; y + h <= I.h; y += yStep) {
@@ -131,12 +140,15 @@ function findPortrait(I, tpl, H, xRange) {
   let best = { s: -1, box: null };
   for (const cand of candidates) {
     const b0 = cand.box;
+    const yStep = Math.max(1, Math.round(b0.h * 0.06));
+    const xStep = Math.max(2, Math.round(b0.h * 0.07));
+    const inc = Math.max(1, Math.round(xStep / 5));
     for (let dh = -hStep; dh <= hStep; dh++) {
       for (const da of [-0.06, -0.03, 0, 0.03, 0.06]) {
         const h = b0.h + dh;
         const w = Math.round(h * (b0.w / b0.h + da));
-        for (let dy = -yStep; dy <= yStep; dy++) {
-          for (let dx = -xStep; dx <= xStep; dx++) {
+        for (let dy = -yStep; dy <= yStep; dy += inc) {
+          for (let dx = -xStep; dx <= xStep; dx += inc) {
             const box = { x: b0.x + dx, y: b0.y + dy, w, h };
             if (box.x < 0 || box.y < 0 || box.x + w > I.w || box.y + h > I.h) continue;
             const s = scoreBox(I, box, tpl, 'fine');
@@ -175,7 +187,23 @@ function findSlots(I, geo, templates) {
     if (picked.left.length === 5 && picked.right.length === 5) break;
   }
   const order = (a, b) => a.x - b.x;
-  return [...picked.left.sort(order), ...picked.right.sort(order)].map((p) => p.x);
+  const left = regularize(picked.left.sort(order).map((p) => p.x), w, 'left');
+  const right = regularize(picked.right.sort(order).map((p) => p.x), w, 'right');
+  return [...left, ...right];
+}
+
+// Os 5 retratos de cada lado ficam lado a lado, igualmente espaçados, a partir do relógio.
+// Ancoramos no retrato mais perto do centro (sempre parte da barra) e montamos os 5 com o
+// espaçamento entre vizinhos. Assim um "retrato" achado no cenário, longe da barra, é
+// descartado e uma posição que faltou é preenchida.
+function regularize(xs, w, side) {
+  if (xs.length < 2) return xs;
+  const diffs = xs.slice(1).map((x, i) => x - xs[i]).filter((d) => d >= w * 0.85);
+  if (!diffs.length) return xs;
+  const spacing = Math.min(...diffs);
+  const anchor = side === 'left' ? xs[xs.length - 1] : xs[0];
+  const grid = [0, 1, 2, 3, 4].map((k) => Math.round(side === 'left' ? anchor - (4 - k) * spacing : anchor + k * spacing));
+  return grid.map((g) => xs.find((x) => Math.abs(x - g) < w * 0.3) ?? g);
 }
 
 // Para cada retrato: melhores candidatos (com pequeno ajuste de posição).
@@ -214,9 +242,9 @@ function assignUnique(candidatesPerSlot) {
   return result;
 }
 
-function loadGeometry() {
+function loadGeometry(layout) {
   try {
-    return existsSync(GEOMETRY_FILE) ? JSON.parse(readFileSync(GEOMETRY_FILE, 'utf8')) : null;
+    return existsSync(layout.file) ? JSON.parse(readFileSync(layout.file, 'utf8')) : null;
   } catch {
     return null;
   }
@@ -237,6 +265,7 @@ function fromRelative(rel, W, H) {
 }
 
 const MIN_SCORE = 0.45;
+const MIN_SLOT_SCORE = 0.35;
 
 function classifyAll(I, geo, xs, templates) {
   const cands = xs.map((x) => classifySlot(I, { x, y: geo.y, w: geo.w, h: geo.h }, templates));
@@ -249,9 +278,11 @@ function classifyAll(I, geo, xs, templates) {
 /**
  * strip: { rgb, width, height, windowHeight }
  * myHero: nome curto do seu herói (da GSI) ou null; myTeam: 'radiant' | 'dire' | null
+ * layout: 'ingame' (barra do jogo) ou 'strategy' (barra do tempo de estratégia)
  * Retorna { ok, slots: [{ short, score, confidence } x10], reason }
  */
-export function recognizeTopBar(strip, templates, { myHero, myTeam } = {}) {
+export function recognizeTopBar(strip, templates, { myHero, myTeam, layout: layoutName = 'ingame' } = {}) {
+  const layout = LAYOUTS[layoutName];
   const I = new Integral(strip.rgb, strip.width, strip.height);
   const W = strip.width;
   const H = strip.windowHeight;
@@ -271,12 +302,16 @@ export function recognizeTopBar(strip, templates, { myHero, myTeam } = {}) {
     const myIdx = slots.findIndex((s) => s?.short === myHero);
     if (myHero && myIdx < 0) return { ok: false, reason: 'Não encontrei o seu herói na barra superior.', slots };
     if (avg < MIN_SCORE) return { ok: false, reason: 'A barra superior não ficou nítida na captura.', slots };
-    writeFileSync(GEOMETRY_FILE, JSON.stringify(toRelative(geo, xs, W, H)));
+    // Garante os 10 heróis definidos: um retrato vazio ou irreconhecível invalida a leitura.
+    if (slots.some((s) => !s || s.score < MIN_SLOT_SCORE)) {
+      return { ok: false, reason: 'Nem todos os 10 heróis estavam visíveis com clareza.', slots };
+    }
+    writeFileSync(layout.file, JSON.stringify(toRelative(geo, xs, W, H)));
     return { ok: true, slots, how, average: Number(avg.toFixed(3)) };
   };
 
   // 1) Caminho rápido: geometria de uma partida anterior.
-  const saved = loadGeometry();
+  const saved = loadGeometry(layout);
   if (saved) {
     const { geo, xs } = fromRelative(saved, W, H);
     if (geo.y + geo.h <= I.h && xs.every((x) => x >= 0 && x + geo.w <= W)) {
@@ -295,7 +330,7 @@ export function recognizeTopBar(strip, templates, { myHero, myTeam } = {}) {
   const half = myTeam === 'dire' ? [Math.round(W * 0.5), Math.round(W * 0.92)]
     : myTeam === 'radiant' ? [Math.round(W * 0.08), Math.round(W * 0.5)]
       : [Math.round(W * 0.08), Math.round(W * 0.92)];
-  const found = findPortrait(I, tpl, H, half);
+  const found = findPortrait(I, tpl, H, half, layout);
   if (!found.box || found.s < 0.5) {
     return { ok: false, reason: 'Não encontrei o seu herói na barra superior. O Dota estava na tela?' };
   }

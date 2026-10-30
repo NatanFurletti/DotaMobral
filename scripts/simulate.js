@@ -2,6 +2,8 @@
 // Uso: npm run simulate -- --from=-20 --to=480 --speed=10
 //      (speed = segundos de jogo por segundo real)
 //      --hero=juggernaut --team=radiant  (opcional: seu herói e time, como a GSI envia)
+//      --strategy=8  (opcional: segundos de tempo de estratégia antes do pré-jogo)
+//      --heroLate=1  (opcional: só manda o herói depois do tempo de estratégia)
 import { appConfig } from '../src/config.js';
 
 const opt = Object.fromEntries(
@@ -22,6 +24,16 @@ const url = `http://127.0.0.1:${appConfig.port}/`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 console.log(`Simulando de ${from}s até ${to}s em ${speed}x -> ${url}`);
+for (let i = 0; i < (opt.strategy ?? 0); i++) {
+  const { hero, ...rest } = extra;
+  const state = {
+    map: { name: 'start', matchid: 'simulacao-1', clock_time: from, game_state: 'DOTA_GAMERULES_STATE_STRATEGY_TIME', paused: false },
+    ...(opt.heroLate ? rest : extra),
+    auth: { token: appConfig.token },
+  };
+  await fetch(url, { method: 'POST', body: JSON.stringify(state), headers: { 'Content-Type': 'application/json' } }).catch(() => process.exit(1));
+  await sleep(1000);
+}
 for (let clock = from; clock <= to; clock++) {
   const state = {
     provider: { name: 'Dota 2', appid: 570, version: 47, timestamp: Math.floor(Date.now() / 1000) },

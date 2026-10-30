@@ -73,16 +73,22 @@ Na página do DotaMobral, na parte **"Configuração do Dota"**:
 
 ### Sua lane (heróis da partida)
 
-No **pré-jogo** (antes da buzina), o DotaMobral lê os 10 heróis na barra superior do jogo e mostra
-na página: seu duo, os inimigos prováveis da sua lane, se o confronto tende a ser favorável ou não
-(e por quê) e itens úteis para aquela partida.
+No **tempo de estratégia** (logo depois que os 10 heróis foram escolhidos), o DotaMobral lê os
+heróis na barra superior e mostra na página: seu duo, os inimigos prováveis da sua lane, se o
+confronto tende a ser favorável ou não (e por quê) e itens úteis para aquela partida.
+
+Na primeira vez que abrir, ele baixa os retratos oficiais dos heróis (uns 8 MB); a janela preta
+mostra **"Reconhecimento de heróis pronto"** quando terminar.
 
 - Para funcionar, use o Dota em **Janela sem bordas** (Configurações → Vídeo → Modo de exibição).
   Em tela cheia o Windows pode devolver a captura preta.
-- Se algum herói vier errado, corrija em **"Os 10 heróis"**. Se a posição estimada não for a sua,
-  escolha em **"Minha posição"**.
-- A leitura usa só a barra superior (que todos os jogadores veem), uma vez por partida. Pode ser
-  desligada na própria página.
+- Se algum herói vier errado, corrija em **"Os 10 heróis"**, ou clique em **"Ler heróis agora"**
+  para ler de novo (suas correções são mantidas). Se a posição estimada não for a sua, escolha em
+  **"Minha posição"**.
+- Na primeira partida ele calibra a tela e pode ler só no pré-jogo; da segunda em diante, já no
+  tempo de estratégia.
+- A leitura só acontece com os 10 heróis já escolhidos (nunca durante a escolha) e usa só a barra
+  superior, que todos os jogadores veem. Pode ser desligada na própria página.
 
 Na página também dá para:
 - mudar o **volume** dos sons e da voz;
@@ -93,11 +99,29 @@ Suas escolhas ficam salvas para a próxima vez.
 
 ---
 
+## 🔄 Atualizar para uma versão nova
+
+A versão aparece no topo da página do DotaMobral (ex.: **v0.3.0**). A mais recente fica sempre em
+**https://github.com/NatanFurletti/DotaMobral/releases/latest**.
+
+1. Baixe o **`DotaMobral.exe`** novo pelo mesmo link (passo 1).
+2. **Apague o `DotaMobral.exe` antigo** (ou substitua o arquivo, se salvou na mesma pasta).
+   Se ficar com os dois, é fácil abrir o antigo sem querer.
+3. Dê dois cliques no novo. Se o antigo ainda estiver aberto, a versão nova (0.3.0 em diante) fecha
+   o antigo sozinha. Vindo da **0.2.0**, feche antes a janela preta da versão antiga.
+4. Confira no topo da página se aparece o número da versão nova.
+
+Não precisa configurar o Dota de novo: suas configurações e a calibração continuam valendo.
+
+---
+
 ## ❓ Problemas comuns
 
 | O que aconteceu | O que fazer |
 |---|---|
 | Na pasta Downloads só tem um arquivo `.crdownload` ("Não confirmado...") | O navegador está segurando o download. Veja **"O navegador bloqueou o download?"** no passo 1. |
+| Baixei a versão nova, mas a página mostra a antiga | Você abriu o arquivo antigo, ou o antigo ainda estava aberto. Feche todas as janelas pretas, apague o `.exe` antigo e abra o novo. Veja **"Atualizar para uma versão nova"**. |
+| "Sua lane" diz que a captura saiu preta | O Dota está em tela cheia. Mude para **Janela sem bordas** (Configurações → Vídeo). |
 | Fechei a página do navegador sem querer | Dê dois cliques no `DotaMobral.exe` de novo: ele só reabre a página. |
 | O indicador nunca fica verde | Confira o passo 2 (opção na Steam) e **reinicie o Dota**. Os avisos só começam quando a partida carrega. |
 | "Não encontrei a pasta do Dota" | Aparece um campo para colar a pasta. Na Steam: botão direito em Dota 2 → **Gerenciar** → **Ver arquivos locais**. Copie o endereço da janela que abrir e cole no campo. |
