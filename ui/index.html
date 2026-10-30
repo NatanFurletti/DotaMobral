@@ -106,18 +106,24 @@
   .build { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 4px; }
   .brow { display: grid; grid-template-columns: 80px 1fr; gap: 10px; align-items: center; margin: 8px 0; }
   .blabel { color: var(--muted); font-size: 13px; }
-  .bitems { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-  .it { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 13px; }
-  .it img { width: 36px; height: 26px; object-fit: cover; border-radius: 4px; }
+  .bcols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0 12px; }
+  .bcol { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg); }
+  .bhead { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .blist { display: grid; gap: 6px; }
+  .it { display: grid; grid-template-columns: 18px 44px 1fr; align-items: center; gap: 8px; padding: 4px; border-radius: 8px; border: 1px solid transparent; background: var(--card); }
+  .it img { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; }
+  .it .n { font-size: 12px; color: var(--muted); text-align: center; }
+  .it .nm { font-size: 14px; font-weight: 600; line-height: 1.25; }
+  .it .why { font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.3; }
   .it.counter { border-color: var(--warn); }
-  .arrow { color: var(--muted); }
+  .it.aghanim { border-color: var(--accent); }
   .bskills { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
   .sk { min-width: 26px; height: 26px; display: inline-grid; place-items: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); font-weight: 700; font-size: 13px; }
   .sk.R { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
   .sk.T { color: var(--muted); }
   .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; font-size: 13px; color: var(--muted); }
   .legend img { width: 22px; height: 22px; border-radius: 4px; vertical-align: middle; margin-right: 4px; }
-  @media (max-width: 620px) { .lane, .teams { grid-template-columns: 1fr; } .vs { padding-top: 0; } .brow { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) { .lane, .teams { grid-template-columns: 1fr; } .vs { padding-top: 0; } .brow, .bcols { grid-template-columns: 1fr; } }
   @media (max-width: 520px) { label.slider { grid-template-columns: 1fr 44px; } label.slider span:first-child { grid-column: 1 / -1; } }
 </style>
 </head>
@@ -181,10 +187,11 @@
 
       <div class="build">
         <h3>Build</h3>
-        <div class="brow"><span class="blabel">Lane</span><div id="buildLane" class="bitems"></div></div>
-        <div class="brow"><span class="blabel">Meio/fim</span><div id="buildLate" class="bitems"></div></div>
+        <div class="bcols">
+          <div class="bcol"><div class="bhead">Fase de lane</div><div id="buildLane" class="blist"></div></div>
+          <div class="bcol"><div class="bhead">Meio/fim de jogo</div><div id="buildLate" class="blist"></div></div>
+        </div>
         <div class="brow"><span class="blabel">Skills</span><div id="buildSkills" class="bskills"></div></div>
-        <ul id="buildWhy" class="items"></ul>
         <p class="muted" id="buildSource" style="margin:6px 0 0"></p>
       </div>
       <div class="row" style="margin-top:10px">
@@ -525,20 +532,21 @@
     $('scenList').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => api('/api/match/scenario', { index: Number(b.dataset.i) }).then(refresh)));
   }
 
-  function itemChip(it) {
-    return `<span class="it ${it.counter ? 'counter' : ''}" title="${esc(it.why ?? `${it.name} (${it.cost} de ouro)`)}"><img src="${esc(it.img)}" alt="">${esc(it.name)}</span>`;
+  // Item numa coluna: ordem, ícone, nome e, quando houver, o motivo (itens contra a partida e Aghanim's).
+  function itemRow(it, i) {
+    const why = it.kind === 'counter' || it.kind === 'aghanim' ? `<div class="why">${esc(it.why)}</div>` : '';
+    return `<div class="it ${esc(it.kind ?? '')}" title="${esc(`${it.name} — ${it.cost} de ouro`)}"><span class="n">${i + 1}</span><img src="${esc(it.img)}" alt=""><div><div class="nm">${esc(it.name)}</div>${why}</div></div>`;
   }
 
   function renderBuild(b) {
     if (!b) {
       $('buildLane').innerHTML = $('buildLate').innerHTML = $('buildSkills').innerHTML = '<span class="muted">Sem dados agora (internet?).</span>';
-      $('buildWhy').innerHTML = '';
       $('buildSource').textContent = '';
       return;
     }
-    const chain = (items) => items.length ? items.map(itemChip).join('<span class="arrow">→</span>') : '<span class="muted">—</span>';
-    $('buildLane').innerHTML = chain(b.lane);
-    $('buildLate').innerHTML = chain(b.late);
+    const list = (items) => items.length ? items.map(itemRow).join('') : '<span class="muted">—</span>';
+    $('buildLane').innerHTML = list(b.lane);
+    $('buildLate').innerHTML = list(b.late);
     if (b.skills) {
       const s = b.skills;
       $('buildSkills').innerHTML = s.order.map((x) => `<span class="sk ${x.letter}" title="Nível ${x.level}: ${esc(x.name)}">${x.letter}</span>`).join('')
@@ -547,10 +555,8 @@
     } else {
       $('buildSkills').innerHTML = '<span class="muted">Sem dados de skills para este herói agora.</span>';
     }
-    const why = [...b.lane, ...b.late].filter((i) => i.counter);
-    $('buildWhy').innerHTML = why.map((i) => `<li><b>${esc(i.name)}</b>: <span class="muted">${esc(i.why)}</span></li>`).join('');
     $('buildSource').textContent = b.basedOnPopular
-      ? 'Itens com borda amarela: escolhidos contra esta partida. Os demais e as skills: os mais usados com o herói em partidas recentes (OpenDota).'
+      ? 'Borda amarela: contra esta partida. Borda vermelha: Aghanim. Os demais itens e as skills: os mais usados com o herói em partidas recentes (OpenDota).'
       : 'Só os itens contra esta partida (sem dados do herói agora).';
   }
 
