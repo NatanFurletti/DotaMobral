@@ -5,7 +5,8 @@
 //    se não der certo, no pré-jogo (com uma nova tentativa). Nunca durante a escolha de heróis;
 //  - manual: só quando você aperta "Ler heróis agora";
 //  - sempre só a faixa da barra superior (nunca minimapa, nunca durante a luta).
-import { analyzeLane, suggestItems } from './advice.js';
+import { analyzeLane } from './advice.js';
+import { buildGuide } from './buildguide.js';
 import { captureStrip } from './capture.js';
 import { loadHeroes, matchups } from './heroes.js';
 import { POSITION_NAMES, assignPositions, laneMatchup } from './lanes.js';
@@ -209,6 +210,12 @@ async function analyze() {
     try {
       myMatchups = await matchups(myHero.id);
     } catch { /* sem internet: segue só com as regras */ }
+    let build = null;
+    try {
+      build = await buildGuide({ me, opponents, enemies });
+    } catch (err) {
+      options.log(`Build indisponível agora: ${err.message}`);
+    }
     state.analysis = {
       lane,
       me: { heroId: me.hero.id, pos: me.pos, posName: POSITION_NAMES[me.pos] },
@@ -217,7 +224,7 @@ async function analyze() {
       allies: allies.map((a) => ({ heroId: a.hero.id, pos: a.pos })),
       enemies: enemies.map((e) => ({ heroId: e.hero.id, pos: e.pos })),
       ...analyzeLane({ me, duo, opponents, enemies, myMatchups }),
-      items: suggestItems({ me, opponents, enemies }),
+      build,
       side: myTeamIdx === 0 ? 'Radiant' : 'Dire',
     };
   } catch (err) {

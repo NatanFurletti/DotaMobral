@@ -62,6 +62,7 @@
   .muted { color: var(--muted); font-size: 13px; }
   footer { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
   .hidden { display: none; }
+
   h3 { font-size: 15px; margin: 16px 0 8px; }
   .k { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
   .lane { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: start; }
@@ -84,7 +85,21 @@
   .slot select { flex: 1; min-width: 0; }
   .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; background: var(--line); }
   .dot.alta, .dot.manual { background: var(--ok); } .dot.média { background: var(--warn); } .dot.baixa { background: var(--bad); }
-  @media (max-width: 620px) { .lane, .teams { grid-template-columns: 1fr; } .vs { padding-top: 0; } }
+  .build { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 4px; }
+  .brow { display: grid; grid-template-columns: 80px 1fr; gap: 10px; align-items: center; margin: 8px 0; }
+  .blabel { color: var(--muted); font-size: 13px; }
+  .bitems { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .it { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 13px; }
+  .it img { width: 36px; height: 26px; object-fit: cover; border-radius: 4px; }
+  .it.counter { border-color: var(--warn); }
+  .arrow { color: var(--muted); }
+  .bskills { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .sk { min-width: 26px; height: 26px; display: inline-grid; place-items: center; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); font-weight: 700; font-size: 13px; }
+  .sk.R { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .sk.T { color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .legend img { width: 22px; height: 22px; border-radius: 4px; vertical-align: middle; margin-right: 4px; }
+  @media (max-width: 620px) { .lane, .teams { grid-template-columns: 1fr; } .vs { padding-top: 0; } .brow { grid-template-columns: 1fr; } }
   @media (max-width: 520px) { label.slider { grid-template-columns: 1fr 44px; } label.slider span:first-child { grid-column: 1 / -1; } }
 </style>
 </head>
@@ -128,8 +143,14 @@
       </div>
       <div id="verdict" class="verdict"></div>
       <ul id="reasons" class="reasons"></ul>
-      <h3>Itens úteis nesta partida</h3>
-      <ul id="items" class="items"></ul>
+      <div class="build">
+        <h3>Build</h3>
+        <div class="brow"><span class="blabel">Lane</span><div id="buildLane" class="bitems"></div></div>
+        <div class="brow"><span class="blabel">Meio/fim</span><div id="buildLate" class="bitems"></div></div>
+        <div class="brow"><span class="blabel">Skills</span><div id="buildSkills" class="bskills"></div></div>
+        <ul id="buildWhy" class="items"></ul>
+        <p class="muted" id="buildSource" style="margin:6px 0 0"></p>
+      </div>
       <div class="row" style="margin-top:10px">
         <button id="copyPre">Copiar PRÉ para o Turbo Coach</button>
         <span class="muted">Posições e lanes são estimativas; ajuste “Minha posição” se precisar.</span>
@@ -397,9 +418,7 @@
       $('verdict').className = `verdict ${tone}`;
       $('verdict').textContent = text + (a.basedOnStats ? '' : ' (só pelas características dos heróis)');
       $('reasons').innerHTML = a.reasons.map((r) => `<li class="${r.tone}">${esc(r.text)}</li>`).join('');
-      $('items').innerHTML = a.items.length
-        ? a.items.map((i) => `<li><b>${esc(i.item)}</b> <span class="tag">${i.when === 'lane' ? 'lane' : 'partida'}</span><br><span class="muted">${esc(i.why)}</span></li>`).join('')
-        : '<li class="muted">Nenhum item especial: siga a build normal do seu herói.</li>';
+      renderBuild(a.build);
     }
 
     const options = '<option value="">—</option>' + heroList.map((h) => `<option value="${h.id}">${esc(h.label)}</option>`).join('');
@@ -417,6 +436,35 @@
       });
     }
     if (!m.slots.some(Boolean)) $('heroesBox').open = false;
+  }
+
+  function itemChip(it) {
+    return `<span class="it ${it.counter ? 'counter' : ''}" title="${esc(it.why ?? `${it.name} (${it.cost} de ouro)`)}"><img src="${esc(it.img)}" alt="">${esc(it.name)}</span>`;
+  }
+
+  function renderBuild(b) {
+    if (!b) {
+      $('buildLane').innerHTML = $('buildLate').innerHTML = $('buildSkills').innerHTML = '<span class="muted">Sem dados agora (internet?).</span>';
+      $('buildWhy').innerHTML = '';
+      $('buildSource').textContent = '';
+      return;
+    }
+    const chain = (items) => items.length ? items.map(itemChip).join('<span class="arrow">→</span>') : '<span class="muted">—</span>';
+    $('buildLane').innerHTML = chain(b.lane);
+    $('buildLate').innerHTML = chain(b.late);
+    if (b.skills) {
+      const s = b.skills;
+      $('buildSkills').innerHTML = s.order.map((x) => `<span class="sk ${x.letter}" title="Nível ${x.level}: ${esc(x.name)}">${x.letter}</span>`).join('')
+        + `<span class="muted" style="margin-left:6px">${s.max ? `max ${s.max} · ` : ''}R sempre que puder</span>`
+        + `<div class="legend" style="flex-basis:100%">${s.legend.map((l) => `<span>${l.img ? `<img src="${esc(l.img)}" alt="">` : ''}<b>${l.letter}</b> ${esc(l.name)}</span>`).join('')}</div>`;
+    } else {
+      $('buildSkills').innerHTML = '<span class="muted">Sem dados de skills para este herói agora.</span>';
+    }
+    const why = [...b.lane, ...b.late].filter((i) => i.counter);
+    $('buildWhy').innerHTML = why.map((i) => `<li><b>${esc(i.name)}</b>: <span class="muted">${esc(i.why)}</span></li>`).join('');
+    $('buildSource').textContent = b.basedOnPopular
+      ? 'Itens com borda amarela: escolhidos contra esta partida. Os demais e as skills: os mais usados com o herói em partidas recentes (OpenDota).'
+      : 'Só os itens contra esta partida (sem dados do herói agora).';
   }
 
   $('scanBtn').addEventListener('click', async () => {

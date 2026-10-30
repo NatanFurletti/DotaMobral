@@ -74,38 +74,40 @@ export function analyzeLane({ me, duo, opponents, enemies, myMatchups }) {
   return { verdict, reasons: reasons.slice(0, 5), perEnemy, basedOnStats: evidence > 0 };
 }
 
-// Itens úteis para ESTA partida, considerando o seu papel (núcleo ou suporte).
-export function suggestItems({ me, opponents, enemies }) {
+// Itens contra ESTA partida, com o código oficial de cada item (para o ícone).
+// when: 'lane' (baratos, início) ou 'partida' (mais caros, meio/fim). Ajustado para núcleo ou suporte.
+export function counterItems({ me, opponents, enemies }) {
   const core = me.pos <= 3;
   const items = [];
-  const add = (item, why, when) => {
-    if (!items.some((i) => i.item === item)) items.push({ item, why, when });
+  const add = (keys, why, when) => {
+    for (const key of [].concat(keys)) if (!items.some((i) => i.key === key)) items.push({ key, why, when });
   };
   const all = enemies.map((e) => e.hero);
   const lane = opponents.map((o) => o.hero);
 
-  // Lane
+  // Lane (itens baratos)
   const laneNukers = lane.filter((h) => isRole('Nuker', h));
-  if (laneNukers.length) add('Magic Stick / Magic Wand', `${names(laneNukers)} ${laneNukers.length > 1 ? 'usam' : 'usa'} muita magia: o Stick enche rápido e salva sua vida.`, 'lane');
-  if (me.hero.attack === 'Melee' && lane.some((h) => h.attack === 'Ranged')) add('Tango + Healing Salve extra', 'Vai tomar dano à distância na lane; regeneração extra evita voltar para a base.', 'lane');
+  if (laneNukers.length) add('magic_wand', `${names(laneNukers)} ${laneNukers.length > 1 ? 'usam' : 'usa'} muita magia: o Wand enche rápido e salva sua vida.`, 'lane');
+  if (me.hero.attack === 'Melee' && lane.some((h) => h.attack === 'Ranged')) add('flask', 'Vai tomar dano à distância na lane: leve Healing Salve extra.', 'lane');
   const laneInvis = lane.filter((h) => has('invisibility', h));
-  if (laneInvis.length) add('Dust of Appearance', `${names(laneInvis)} ${laneInvis.length > 1 ? 'ficam' : 'fica'} invisível: o Dust revela na hora do abate.`, 'lane');
-
-  // Partida
+  if (laneInvis.length) add('dust', `${names(laneInvis)} ${laneInvis.length > 1 ? 'ficam' : 'fica'} invisível: o Dust revela na hora do abate.`, 'lane');
   const invis = all.filter((h) => has('invisibility', h));
-  if (invis.length) add(core ? 'Dust of Appearance' : 'Sentry Ward + Dust of Appearance', `${names(invis)}: heróis com invisibilidade.`, 'partida');
-  const healers = all.filter((h) => has('healing', h));
-  if (healers.length) add(core ? 'Eye of Skadi ou Shiva\'s Guard' : 'Spirit Vessel', `${names(healers)}: muita cura no time inimigo, e esse item reduz a cura.`, 'partida');
-  const magic = all.filter((h) => isRole('Nuker', h) || isRole('Disabler', h));
-  if (magic.length >= 3) add(core ? 'Black King Bar' : 'Glimmer Cape ou Pipe of Insight', `${magic.length} inimigos com magia ou controle forte.`, 'partida');
-  const evasion = all.filter((h) => has('evasion', h));
-  if (evasion.length && core) add('Monkey King Bar', `${names(evasion)} ${evasion.length > 1 ? 'desviam' : 'desvia'} de ataques: o MKB garante o acerto.`, 'partida');
-  const multi = all.filter((h) => has('illusions', h) || has('summons', h));
-  if (multi.length) add(core ? 'Mjollnir ou outro dano em área' : 'Itens de dano em área', `${names(multi)}: muitas ilusões ou unidades.`, 'partida');
-  const physical = all.filter((h) => isRole('Carry', h) && h.attack === 'Melee');
-  if (physical.length >= 2 && !core) add('Ghost Scepter ou Force Staff', `${names(physical)}: dano físico corpo a corpo, e você precisa sair do alcance deles.`, 'partida');
-  const escapes = all.filter((h) => isRole('Escape', h));
-  if (escapes.length >= 3) add(core ? 'Orchid Malevolence ou Scythe of Vyse' : 'Rod of Atos', `${escapes.length} inimigos com fuga: segure-os no lugar antes do combo.`, 'partida');
+  if (invis.length && !core && !laneInvis.length) add('ward_sentry', `${names(invis)}: heróis com invisibilidade. Sentry para revelar.`, 'lane');
 
-  return items.slice(0, 6);
+  // Meio/fim de jogo (itens mais caros)
+  const healers = all.filter((h) => has('healing', h));
+  if (healers.length) add(core ? 'skadi' : 'spirit_vessel', `${names(healers)}: muita cura no time inimigo, e esse item reduz a cura.`, 'partida');
+  const magic = all.filter((h) => isRole('Nuker', h) || isRole('Disabler', h));
+  if (magic.length >= 3) add(core ? 'black_king_bar' : 'glimmer_cape', `${magic.length} inimigos com magia ou controle forte.`, 'partida');
+  const evasion = all.filter((h) => has('evasion', h));
+  if (evasion.length && core) add('monkey_king_bar', `${names(evasion)} ${evasion.length > 1 ? 'desviam' : 'desvia'} de ataques: o MKB garante o acerto.`, 'partida');
+  const multi = all.filter((h) => has('illusions', h) || has('summons', h));
+  if (multi.length && core) add('mjollnir', `${names(multi)}: muitas ilusões ou unidades; dano em área ajuda.`, 'partida');
+  const physical = all.filter((h) => isRole('Carry', h) && h.attack === 'Melee');
+  if (physical.length >= 2 && !core) add('ghost', `${names(physical)}: dano físico corpo a corpo; o Ghost te salva deles.`, 'partida');
+  const escapes = all.filter((h) => isRole('Escape', h));
+  if (escapes.length >= 3) add(core ? 'orchid' : 'rod_of_atos', `${escapes.length} inimigos com fuga: segure-os no lugar antes do combo.`, 'partida');
+  if (invis.length && core) add('dust', `${names(invis)}: heróis com invisibilidade.`, 'partida');
+
+  return items;
 }
