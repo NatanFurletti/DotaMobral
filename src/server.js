@@ -21,7 +21,7 @@ import { ensureTemplates } from './templates.js';
 import { getFarmView, updateFarm } from './farm.js';
 import { readFileSync } from 'node:fs';
 
-const VERSION = '0.4.0';
+const VERSION = '0.4.1';
 const args = new Set(process.argv.slice(2));
 const mute = args.has('--mute');
 const record = args.has('--record');
